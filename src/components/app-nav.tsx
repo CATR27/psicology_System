@@ -13,9 +13,18 @@ export function AppNav() {
   return (
     <header className="border-b bg-background sticky top-0 z-40">
       <div className="flex items-center justify-between px-6 h-14 w-full max-w-6xl mx-auto">
-        <Link href="/" className="font-semibold tracking-tight">
-          Expedientes Clínicos
-        </Link>
+        <div className="flex items-center gap-5">
+          <Link href="/" className="font-semibold tracking-tight">
+            Expedientes Clínicos
+          </Link>
+          <Show when="signed-in">
+            <nav className="flex items-center gap-3 text-sm">
+              <Link href="/pacientes" className="text-muted-foreground hover:text-foreground">
+                Pacientes
+              </Link>
+            </nav>
+          </Show>
+        </div>
         <div className="flex items-center gap-3">
           <Show when="signed-out">
             <SignInButton mode="modal">
