@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===== Enums =====
+
+enum Role {
+  ADMIN
+  PSICOLOGO
+  RECEPCION
+}
+
+enum ConsentTipo {
+  GRABACION
+  TRATAMIENTO_IA
+}
+
+enum PatientEstado {
+  ACTIVO
+  INACTIVO
+  ALTA
+}
+
+enum AppointmentEstado {
+  PROGRAMADA
+  CONFIRMADA
+  CANCELADA
+  COMPLETADA
+}
+
+enum RecordingEstado {
+  PENDIENTE
+  SUBIDO
+  TRANSCRIBIENDO
+  TRANSCRITO
+  ANALIZANDO
+  LISTO
+  FALLIDO
+}
+
+enum Hablante {
+  PSICOLOGO
+  PACIENTE
+}
+
+enum ClinicalNoteEstado {
+  BORRADOR
+  FIRMADA
+}
+
+enum ReminderCanal {
+  EMAIL
+}
+
+enum ReminderEstado {
+  PENDIENTE
+  ENVIADO
+  FALLIDO
+}
+
+// ===== Modelos =====
+
+model Organization {
+  id            String   @id @default(cuid())
+  clerkOrgId    String   @unique
+  nombre        String
+  zonaHoraria   String   @default("America/Mexico_City")
+  creadaEn      DateTime @default(now())
+  actualizadaEn DateTime @updatedAt
+
+  users         User[]
+  patients      Patient[]
+  appointments  Appointment[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id                String   @id @default(cuid())
+  clerkUserId       String   @unique
+  orgId             String
+  rol               Role     @default(PSICOLOGO)
+  cedulaProfesional String?
+  nombre            String?
+  email             String?
+  creadaEn          DateTime @default(now())
+  actualizadaEn     DateTime @updatedAt
+
+  org                Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  patients           Patient[]       @relation("PsicologoPatients")
+  sessions           Session[]
+  appointments       Appointment[]
+  notasEditadas      ClinicalNote[]  @relation("NoteEditor")
+  notasFirmadas      ClinicalNote[]  @relation("NoteSigner")
+  auditLogs          AuditLog[]
+
+  @@index([orgId])
+}
+
+model Patient {
+  id               String        @id @default(cuid())
+  orgId            String
+  psicologoId      String
+  nombre           String
+  fechaNacimiento  DateTime?
+  contacto         String?
+  estado           PatientEstado @default(ACTIVO)
+  creadaEn         DateTime      @default(now())
+  actualizadaEn    DateTime      @updatedAt
+
+  org              Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  psicologo        User          @relation("PsicologoPatients", fields: [psicologoId], references: [id], onDelete: Cascade)
+
+  consents         Consent[]
+  appointments     Appointment[]
+  sessions         Session[]
+
+  @@index([orgId])
+  @@index([psicologoId])
+  @@index([orgId, psicologoId])
+}
+
+model Consent {
+  id           String       @id @default(cuid())
+  patientId    String
+  tipo         ConsentTipo
+  otorgadoEn   DateTime     @default(now())
+  revocadoEn   DateTime?
+  evidenciaUrl String?
+  creadaEn     DateTime     @default(now())
+
+  patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+model Appointment {
+  id            String            @id @default(cuid())
+  orgId         String
+  psicologoId   String
+  patientId     String
+  inicio        DateTime
+  fin           DateTime
+  estado        AppointmentEstado @default(PROGRAMADA)
+  googleEventId String?
+  creadaEn      DateTime          @default(now())
+  actualizadaEn DateTime          @updatedAt
+
+  org           Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  psicologo     User              @relation(fields: [psicologoId], references: [id], onDelete: Cascade)
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  sessions      Session[]
+  reminders     Reminder[]
+
+  @@index([orgId])
+  @@index([psicologoId])
+  @@index([patientId])
+}
+
+model Session {
+  id            String       @id @default(cuid())
+  appointmentId String?
+  patientId     String
+  psicologoId   String
+  numeroSesion  Int
+  iniciadaEn    DateTime     @default(now())
+  creadaEn      DateTime     @default(now())
+
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  patient       Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  psicologo     User         @relation(fields: [psicologoId], references: [id], onDelete: Cascade)
+
+  recordings    Recording[]
+  clinicalNotes ClinicalNote[]
+  aiAnalyses    AiAnalysis[]
+  emotionMetrics EmotionMetric[]
+
+  @@unique([patientId, numeroSesion])
+  @@index([patientId])
+  @@index([psicologoId])
+}
+
+model Recording {
+  id            String         @id @default(cuid())
+  sessionId     String
+  r2Key         String?
+  duracionSeg   Int?
+  bytes         Int?
+  estado        RecordingEstado @default(PENDIENTE)
+  intentos      Int            @default(0)
+  borradoEn     DateTime?
+  creadaEn      DateTime       @default(now())
+  actualizadaEn DateTime       @updatedAt
+
+  session       Session        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  transcripts   Transcript[]
+
+  @@index([sessionId])
+  @@index([estado])
+}
+
+model Transcript {
+  id            String   @id @default(cuid())
+  recordingId   String
+  proveedor     String   @default("deepgram")
+  idioma        String   @default("es")
+  textoCompleto String
+  confianza     Float?
+  creadaEn      DateTime @default(now())
+
+  recording     Recording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  segments      TranscriptSegment[]
+
+  @@index([recordingId])
+}
+
+model TranscriptSegment {
+  id           String     @id @default(cuid())
+  transcriptId String
+  hablante     Hablante
+  msInicio     Int
+  msFin        Int
+  texto        String
+
+  transcript   Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+
+  @@index([transcriptId])
+}
+
+model ClinicalNote {
+  id            String             @id @default(cuid())
+  sessionId     String
+  version       Int
+  estado        ClinicalNoteEstado @default(BORRADOR)
+  soapJson      Json
+  generadaPorIa Boolean            @default(false)
+  editadaPorId  String?
+  firmadaEn     DateTime?
+  firmadaPorId  String?
+  creadaEn      DateTime           @default(now())
+
+  session       Session            @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  editor        User?              @relation("NoteEditor", fields: [editadaPorId], references: [id], onDelete: SetNull)
+  firmante      User?              @relation("NoteSigner", fields: [firmadaPorId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, version])
+  @@index([sessionId])
+}
+
+model AiAnalysis {
+  id         String   @id @default(cuid())
+  sessionId  String
+  tipo       String
+  payloadJson Json
+  modelo     String?
+  tokensIn   Int?
+  tokensOut  Int?
+  costoUsd   Float?
+  creadaEn   DateTime @default(now())
+
+  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model EmotionMetric {
+  id        String   @id @default(cuid())
+  sessionId String
+  etiqueta  String
+  puntaje   Float
+  msInicio  Int
+
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model Reminder {
+  id             String         @id @default(cuid())
+  appointmentId  String
+  canal          ReminderCanal  @default(EMAIL)
+  programadoPara DateTime
+  enviadoEn      DateTime?
+  estado         ReminderEstado @default(PENDIENTE)
+  creadaEn       DateTime       @default(now())
+
+  appointment    Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@index([programadoPara])
+  @@index([estado])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  actorId   String?
+  accion    String
+  recurso   String
+  recursoId String?
+  ip        String?
+  creadoEn  DateTime @default(now())
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor     User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([recurso, recursoId])
+  @@index([creadoEn])
+}
