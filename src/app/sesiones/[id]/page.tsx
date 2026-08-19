@@ -2,12 +2,12 @@ import Link from "next/link";
 
 import { getSession } from "@/lib/dal/sessions";
 import { listNoteVersions } from "@/lib/dal/notes";
-import type { SoapNote } from "@/lib/schemas/note";
+import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NoteEditor } from "@/components/note-editor";
-import { NoteView } from "@/components/note-view";
+import { FormatoSesionEditor } from "@/components/formato-sesion-editor";
+import { FormatoSesionView } from "@/components/formato-sesion-view";
 import { SignNoteButton } from "@/components/sign-note-button";
 
 export default async function SesionDetallePage({
@@ -26,23 +26,23 @@ export default async function SesionDetallePage({
 
   let noteSection;
   if (!latestNote) {
-    noteSection = <NoteEditor sessionId={id} />;
+    noteSection = <FormatoSesionEditor sessionId={id} />;
   } else if (latestNote.estado === "BORRADOR") {
     noteSection = (
       <div className="space-y-4">
-        <NoteEditor
+        <FormatoSesionEditor
           sessionId={id}
           noteId={latestNote.id}
-          initial={latestNote.soapJson as unknown as SoapNote}
+          initial={latestNote.contenidoJson as unknown as FormatoSesion}
         />
         <SignNoteButton noteId={latestNote.id} sessionId={id} />
       </div>
     );
   } else if (nueva === "1") {
     noteSection = (
-      <NoteEditor
+      <FormatoSesionEditor
         sessionId={id}
-        initial={latestNote.soapJson as unknown as SoapNote}
+        initial={latestNote.contenidoJson as unknown as FormatoSesion}
       />
     );
   } else {
@@ -57,7 +57,9 @@ export default async function SesionDetallePage({
               : "—"}
           </span>
         </div>
-        <NoteView soap={latestNote.soapJson as unknown as SoapNote} />
+        <FormatoSesionView
+          data={latestNote.contenidoJson as unknown as FormatoSesion}
+        />
         <Link href={`/sesiones/${id}?nueva=1`}>
           <Button variant="outline">Nueva versión</Button>
         </Link>
@@ -74,9 +76,18 @@ export default async function SesionDetallePage({
         >
           ← {session.patient.nombre}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Sesión {session.numeroSesion}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Consulta · Sesión {session.numeroSesion}
+          </h1>
+          {latestNote && (
+            <a href={`/api/sesiones/${id}/pdf`} target="_blank">
+              <Button variant="outline" size="sm">
+                Descargar PDF
+              </Button>
+            </a>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           {new Date(session.iniciadaEn).toLocaleString("es-MX")}
         </p>
@@ -84,7 +95,7 @@ export default async function SesionDetallePage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Nota clínica</CardTitle>
+          <CardTitle>Registro de la consulta</CardTitle>
         </CardHeader>
         <CardContent>{noteSection}</CardContent>
       </Card>
@@ -108,7 +119,8 @@ export default async function SesionDetallePage({
                   <div className="flex items-center gap-2">
                     {v.firmadaEn && (
                       <span className="text-xs text-muted-foreground">
-                        firmada {new Date(v.firmadaEn).toLocaleDateString("es-MX")}
+                        firmada{" "}
+                        {new Date(v.firmadaEn).toLocaleDateString("es-MX")}
                       </span>
                     )}
                     <Badge

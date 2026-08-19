@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import type { SoapNote } from "@/lib/schemas/note";
+import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 
 import { requireContext } from "./context";
 import { audit } from "./audit";
@@ -21,8 +21,8 @@ function sessionScope(ctx: Awaited<ReturnType<typeof requireContext>>) {
   };
 }
 
-function asJson(soap: SoapNote): Prisma.InputJsonValue {
-  return soap as unknown as Prisma.InputJsonValue;
+function asJson(contenido: FormatoSesion): Prisma.InputJsonValue {
+  return contenido as unknown as Prisma.InputJsonValue;
 }
 
 export async function listNoteVersions(sessionId: string) {
@@ -48,7 +48,7 @@ export async function getLatestNote(sessionId: string) {
 
 export async function createNote(
   sessionId: string,
-  soap: SoapNote,
+  contenido: FormatoSesion,
   generadaPorIa = false,
 ) {
   const ctx = await requireContext();
@@ -75,7 +75,7 @@ export async function createNote(
       sessionId: session.id,
       version: (last?.version ?? 0) + 1,
       estado: "BORRADOR",
-      soapJson: asJson(soap),
+      contenidoJson: asJson(contenido),
       generadaPorIa,
       editadaPorId: ctx.userId,
     },
@@ -84,7 +84,7 @@ export async function createNote(
   return note;
 }
 
-export async function updateDraft(noteId: string, soap: SoapNote) {
+export async function updateDraft(noteId: string, contenido: FormatoSesion) {
   const ctx = await requireContext();
   const note = await prisma.clinicalNote.findFirst({
     where: { id: noteId, ...sessionScope(ctx) },
@@ -96,7 +96,10 @@ export async function updateDraft(noteId: string, soap: SoapNote) {
   }
   const updated = await prisma.clinicalNote.update({
     where: { id: note.id },
-    data: { soapJson: asJson(soap), editadaPorId: ctx.userId },
+    data: {
+      contenidoJson: asJson(contenido),
+      editadaPorId: ctx.userId,
+    },
   });
   await audit(ctx, "note.update", note.id);
   return updated;

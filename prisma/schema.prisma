@@ -119,6 +119,7 @@ model Patient {
   consents         Consent[]
   appointments     Appointment[]
   sessions         Session[]
+  historiaClinica  HistoriaClinica?
 
   @@index([orgId])
   @@index([psicologoId])
@@ -240,7 +241,7 @@ model ClinicalNote {
   sessionId     String
   version       Int
   estado        ClinicalNoteEstado @default(BORRADOR)
-  soapJson      Json
+  contenidoJson Json
   generadaPorIa Boolean            @default(false)
   editadaPorId  String?
   firmadaEn     DateTime?
@@ -253,6 +254,18 @@ model ClinicalNote {
 
   @@unique([sessionId, version])
   @@index([sessionId])
+}
+
+model HistoriaClinica {
+  id            String   @id @default(cuid())
+  patientId     String   @unique
+  datos         Json
+  creadaEn      DateTime @default(now())
+  actualizadaEn DateTime @updatedAt
+
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
 }
 
 model AiAnalysis {

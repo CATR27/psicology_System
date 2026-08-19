@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
-import { soapNoteSchema, type SoapNote } from "@/lib/schemas/note";
+import {
+  formatoSesionSchema,
+  type FormatoSesion,
+} from "@/lib/schemas/formato-sesion";
 import { createNote, signNote, updateDraft } from "@/lib/dal/notes";
 
 export type NoteActionResult =
@@ -11,9 +14,9 @@ export type NoteActionResult =
 
 export async function createNoteAction(
   sessionId: string,
-  soap: SoapNote,
+  contenido: FormatoSesion,
 ): Promise<NoteActionResult> {
-  const parsed = soapNoteSchema.safeParse(soap);
+  const parsed = formatoSesionSchema.safeParse(contenido);
   if (!parsed.success) {
     return {
       ok: false,
@@ -35,9 +38,9 @@ export async function createNoteAction(
 export async function updateDraftAction(
   noteId: string,
   sessionId: string,
-  soap: SoapNote,
+  contenido: FormatoSesion,
 ): Promise<NoteActionResult> {
-  const parsed = soapNoteSchema.safeParse(soap);
+  const parsed = formatoSesionSchema.safeParse(contenido);
   if (!parsed.success) {
     return {
       ok: false,

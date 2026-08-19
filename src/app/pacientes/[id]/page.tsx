@@ -2,6 +2,11 @@ import Link from "next/link";
 
 import { getPatient } from "@/lib/dal/patients";
 import { listSessions } from "@/lib/dal/sessions";
+import { getHistoria } from "@/lib/dal/historias";
+import {
+  computeHistoriaProgress,
+  type HistoriaClinica,
+} from "@/lib/schemas/historia-clinica";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +21,14 @@ export default async function PacienteDetallePage({
   const { id } = await params;
   const patient = await getPatient(id);
   const sessions = await listSessions(id);
+  const historia = await getHistoria(id);
+  const historiaData = historia
+    ? (historia.datos as unknown as HistoriaClinica)
+    : null;
+  const progress = historiaData ? computeHistoriaProgress(historiaData) : 0;
 
   return (
-    <div className="max-w-3xl mx-auto w-full py-8 px-6 space-y-6">
+    <div className="max-w-4xl mx-auto w-full py-8 px-6 space-y-6">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -31,14 +41,104 @@ export default async function PacienteDetallePage({
             {patient.contacto ? ` · ${patient.contacto}` : ""}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/pacientes/${id}/editar`}>
-            <Button variant="outline" size="sm">
-              Editar
-            </Button>
-          </Link>
-        </div>
+        <Link href={`/pacientes/${id}/editar`}>
+          <Button variant="outline" size="sm">
+            Editar datos
+          </Button>
+        </Link>
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Historia clínica</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Documento integral del paciente. Llénalo a tu ritmo: todo es
+              opcional y se guarda automáticamente.
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-sm font-medium">{progress}%</span>
+            </div>
+            <Link href={`/pacientes/${id}/historia`}>
+              <Button size="sm" className="w-full">
+                {progress > 0 ? "Continuar" : "Comenzar"}
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Nueva consulta</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Inicia una sesión y registra el formato de consulta (objetivo,
+              temas, clima afectivo, señalamientos).
+            </p>
+            <Link href={`/pacientes/${id}/sesiones/nueva`}>
+              <Button size="sm" variant="secondary" className="w-full">
+                Iniciar consulta
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sesiones ({sessions.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Aún no hay sesiones para este paciente.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {sessions.map((s) => {
+                const nota = s.clinicalNotes[0];
+                return (
+                  <li key={s.id}>
+                    <Link
+                      href={`/sesiones/${s.id}`}
+                      className="flex items-center justify-between border-b pb-2 last:border-0"
+                    >
+                      <div className="space-y-0.5">
+                        <p className="font-medium">Sesión {s.numeroSesion}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(s.iniciadaEn).toLocaleString("es-MX")}
+                        </p>
+                      </div>
+                      {nota ? (
+                        <Badge
+                          variant={
+                            nota.estado === "FIRMADA" ? "default" : "secondary"
+                          }
+                        >
+                          {nota.estado === "FIRMADA" ? "Firmada" : "Borrador"}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          Sin registro
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -75,56 +175,6 @@ export default async function PacienteDetallePage({
           <div className="border-t pt-4">
             <ConsentForm patientId={id} />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>Sesiones</CardTitle>
-          <Link href={`/pacientes/${id}/sesiones/nueva`}>
-            <Button size="sm">Nueva sesión</Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Aún no hay sesiones para este paciente.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {sessions.map((s) => {
-                const nota = s.clinicalNotes[0];
-                return (
-                  <li key={s.id}>
-                    <Link
-                      href={`/sesiones/${s.id}`}
-                      className="flex items-center justify-between border-b pb-2 last:border-0"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="font-medium">Sesión {s.numeroSesion}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(s.iniciadaEn).toLocaleString("es-MX")}
-                        </p>
-                      </div>
-                      {nota ? (
-                        <Badge
-                          variant={
-                            nota.estado === "FIRMADA" ? "default" : "secondary"
-                          }
-                        >
-                          {nota.estado === "FIRMADA" ? "Firmada" : "Borrador"}
-                        </Badge>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          Sin nota
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
         </CardContent>
       </Card>
     </div>
