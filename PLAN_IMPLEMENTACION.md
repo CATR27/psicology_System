@@ -145,11 +145,11 @@ SENTRY_DSN=
 
 ## ✅ Verificación Fase 0
 
-- [ ] `npm run build` y `npm run lint` sin errores.
-- [ ] **`clerkMiddleware` funciona dentro de `proxy.ts`.** Si `@clerk/nextjs` todavía no lo soporta → detente y avisa al usuario: la salida es usar `middleware.ts` (deprecado, aún funciona) o cambiar a Better Auth. Es bloqueante.
-- [ ] Registrarse crea una fila en `Organization` y otra en `User` — verificado en `npx prisma studio`.
-- [ ] El deploy en Vercel carga y permite iniciar sesión.
-- [ ] `git log` no contiene ninguna API key.
+- [x] `npm run build` y `npm run lint` sin errores.
+- [x] **`clerkMiddleware` funciona dentro de `proxy.ts`.** Si `@clerk/nextjs` todavía no lo soporta → detente y avisa al usuario: la salida es usar `middleware.ts` (deprecado, aún funciona) o cambiar a Better Auth. Es bloqueante.
+- [x] Registrarse crea una fila en `Organization` y otra en `User` — verificado en `npx prisma studio`.
+- [x] El deploy en Vercel carga y permite iniciar sesión.
+- [x] `git log` no contiene ninguna API key.
 
 ---
 
@@ -490,7 +490,7 @@ GOOGLE_CLIENT_SECRET=
 
 # Progreso
 
-- [ ] Fase 0 — Cimientos
+- [x] Fase 0 — Cimientos
 - [ ] Fase 1 — Expediente manual
 - [ ] Fase 2 — Audio → transcripción
 - [ ] Fase 3 — IA

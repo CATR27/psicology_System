@@ -4,8 +4,10 @@ import { prisma } from "@/lib/prisma";
 import type { Role } from "@/generated/prisma/enums";
 
 function mapRole(clerkRole: string | null | undefined): Role {
-  if (clerkRole === "admin") return "ADMIN";
-  if (clerkRole === "recepcion") return "RECEPCION";
+  if (clerkRole === "admin" || clerkRole === "org:admin") return "ADMIN";
+  if (clerkRole === "recepcion" || clerkRole === "org:recepcion") {
+    return "RECEPCION";
+  }
   return "PSICOLOGO";
 }
 
