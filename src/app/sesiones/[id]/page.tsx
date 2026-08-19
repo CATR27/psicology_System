@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormatoSesionEditor } from "@/components/formato-sesion-editor";
 import { FormatoSesionView } from "@/components/formato-sesion-view";
 import { SignNoteButton } from "@/components/sign-note-button";
+import { LeaveSessionLink } from "@/components/leave-session-link";
+import { DeleteSessionButton } from "@/components/delete-session-button";
 
 export default async function SesionDetallePage({
   params,
@@ -70,12 +72,12 @@ export default async function SesionDetallePage({
   return (
     <div className="max-w-3xl mx-auto w-full py-8 px-6 space-y-6">
       <div className="space-y-1">
-        <Link
+        <LeaveSessionLink
           href={`/pacientes/${session.patient.id}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           ← {session.patient.nombre}
-        </Link>
+        </LeaveSessionLink>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold tracking-tight">
             Consulta · Sesión {session.numeroSesion}
@@ -135,6 +137,10 @@ export default async function SesionDetallePage({
           </CardContent>
         </Card>
       )}
+
+      <div className="flex justify-end border-t pt-4">
+        <DeleteSessionButton sessionId={id} patientId={session.patient.id} />
+      </div>
     </div>
   );
 }

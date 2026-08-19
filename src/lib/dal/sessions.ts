@@ -51,7 +51,11 @@ export async function getSession(sessionId: string) {
 export async function createSession(input: SessionCreateInput) {
   const ctx = await requireContext();
   const patient = await prisma.patient.findFirst({
-    where: { id: input.patientId, orgId: ctx.orgId, ...(ctx.rol === "ADMIN" ? {} : { psicologoId: ctx.userId }) },
+    where: {
+      id: input.patientId,
+      orgId: ctx.orgId,
+      ...(ctx.rol === "ADMIN" ? {} : { psicologoId: ctx.userId }),
+    },
     select: { id: true },
   });
   if (!patient) notFound();
@@ -71,5 +75,18 @@ export async function createSession(input: SessionCreateInput) {
     },
   });
   await audit(ctx, "session.create", session.id);
+  return session;
+}
+
+export async function deleteSession(sessionId: string) {
+  const ctx = await requireContext();
+  const session = await prisma.session.findFirst({
+    where: { id: sessionId, ...patientScope(ctx) },
+    select: { id: true, patientId: true },
+  });
+  if (!session) notFound();
+
+  await prisma.session.delete({ where: { id: session.id } });
+  await audit(ctx, "session.delete", sessionId);
   return session;
 }

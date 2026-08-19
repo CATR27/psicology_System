@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { sessionCreateSchema, type SessionCreateInput } from "@/lib/schemas/session";
-import { createSession } from "@/lib/dal/sessions";
+import { createSession, deleteSession } from "@/lib/dal/sessions";
 
 export type SessionActionResult =
   | { ok: true; id: string }
@@ -27,6 +27,22 @@ export async function createSessionAction(
     return {
       ok: false,
       error: e instanceof Error ? e.message : "No se pudo crear la sesión",
+    };
+  }
+}
+
+export async function deleteSessionAction(
+  sessionId: string,
+  patientId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await deleteSession(sessionId);
+    revalidatePath(`/pacientes/${patientId}`);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo borrar la sesión",
     };
   }
 }

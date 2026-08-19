@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConsentForm } from "@/components/consent-form";
 import { RevokeConsentButton } from "@/components/revoke-consent-button";
+import { DeleteSessionButton } from "@/components/delete-session-button";
 
 export default async function PacienteDetallePage({
   params,
@@ -107,10 +108,13 @@ export default async function PacienteDetallePage({
               {sessions.map((s) => {
                 const nota = s.clinicalNotes[0];
                 return (
-                  <li key={s.id}>
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between border-b pb-2 last:border-0"
+                  >
                     <Link
                       href={`/sesiones/${s.id}`}
-                      className="flex items-center justify-between border-b pb-2 last:border-0"
+                      className="flex flex-1 items-center justify-between"
                     >
                       <div className="space-y-0.5">
                         <p className="font-medium">Sesión {s.numeroSesion}</p>
@@ -132,6 +136,11 @@ export default async function PacienteDetallePage({
                         </span>
                       )}
                     </Link>
+                    <DeleteSessionButton
+                      sessionId={s.id}
+                      patientId={id}
+                      label="Borrar"
+                    />
                   </li>
                 );
               })}

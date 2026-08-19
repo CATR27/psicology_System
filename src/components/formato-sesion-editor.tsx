@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { createNoteAction, updateDraftAction } from "@/app/actions/notes";
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
+import { setSessionDirty } from "@/lib/session-dirty";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -44,6 +45,31 @@ export function FormatoSesionEditor({ sessionId, noteId, initial }: Props) {
   });
 
   const clima = useWatch({ control, name: "climaAfectivo" });
+  const allValues = useWatch({ control });
+
+  const initialKey = JSON.stringify({
+    objetivoSesion: initial?.objetivoSesion ?? "",
+    temasCentrales: initial?.temasCentrales ?? "",
+    senalamientos: initial?.senalamientos ?? "",
+    climaAfectivo: initial?.climaAfectivo ?? "",
+    observaciones: initial?.observaciones ?? "",
+  });
+
+  const dirty = JSON.stringify(allValues) !== initialKey;
+
+  useEffect(() => {
+    setSessionDirty(dirty);
+  }, [dirty]);
+
+  useEffect(() => {
+    function handler(e: BeforeUnloadEvent) {
+      if (dirty) {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   function toggleChip(chip: string) {
     const parts = clima
