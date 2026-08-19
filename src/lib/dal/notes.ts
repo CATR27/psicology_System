@@ -53,7 +53,13 @@ export async function createNote(
 ) {
   const ctx = await requireContext();
   const session = await prisma.session.findFirst({
-    where: { id: sessionId, ...sessionScope(ctx) },
+    where: {
+      id: sessionId,
+      patient: {
+        orgId: ctx.orgId,
+        ...(ctx.rol === "ADMIN" ? {} : { psicologoId: ctx.userId }),
+      },
+    },
     select: { id: true },
   });
   if (!session) notFound();
