@@ -20,6 +20,7 @@ export default async function EditarPacientePage({
           nombre: patient.nombre,
           fechaNacimiento: patient.fechaNacimiento,
           contacto: patient.contacto,
+          email: patient.email,
         }}
       />
     </div>

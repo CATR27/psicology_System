@@ -20,6 +20,7 @@ type Props = {
     nombre: string;
     fechaNacimiento: Date | null;
     contacto: string | null;
+    email: string | null;
   };
 };
 
@@ -40,6 +41,7 @@ export function PatientForm({ patientId, initial }: Props) {
         ? new Date(initial.fechaNacimiento).toISOString().slice(0, 10)
         : "",
       contacto: initial?.contacto ?? "",
+      email: initial?.email ?? "",
     },
   });
 
@@ -76,12 +78,24 @@ export function PatientForm({ patientId, initial }: Props) {
         <Input id="fechaNacimiento" type="date" {...register("fechaNacimiento")} />
       </div>
       <div className="space-y-1.5">
-        <Label htmlFor="contacto">Contacto</Label>
+        <Label htmlFor="contacto">Teléfono</Label>
         <Input
           id="contacto"
-          placeholder="Teléfono o correo"
+          placeholder="Teléfono de contacto"
           {...register("contacto")}
         />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="correo@ejemplo.com (para recordatorios)"
+          {...register("email")}
+        />
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}

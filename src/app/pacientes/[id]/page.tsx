@@ -42,11 +42,18 @@ export default async function PacienteDetallePage({
             {patient.contacto ? ` · ${patient.contacto}` : ""}
           </p>
         </div>
-        <Link href={`/pacientes/${id}/editar`}>
-          <Button variant="outline" size="sm">
-            Editar datos
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/agenda">
+            <Button variant="outline" size="sm">
+              Agendar cita
+            </Button>
+          </Link>
+          <Link href={`/pacientes/${id}/editar`}>
+            <Button variant="outline" size="sm">
+              Editar datos
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

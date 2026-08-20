@@ -47,6 +47,7 @@ export async function createPatient(input: PatientInput) {
         ? new Date(input.fechaNacimiento)
         : null,
       contacto: input.contacto ?? null,
+      email: input.email?.trim() || null,
     },
   });
   await audit(ctx, "patient.create", patient.id);
@@ -68,6 +69,7 @@ export async function updatePatient(patientId: string, input: PatientInput) {
         ? new Date(input.fechaNacimiento)
         : null,
       contacto: input.contacto ?? null,
+      email: input.email?.trim() || null,
     },
   });
   await audit(ctx, "patient.update", patient.id);

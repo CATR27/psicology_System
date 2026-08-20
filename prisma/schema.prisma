@@ -57,6 +57,12 @@ enum ReminderCanal {
   EMAIL
 }
 
+enum ReminderTipo {
+  PSICOLOGO_DIA_ANTES
+  PSICOLOGO_HORA_ANTES
+  PACIENTE_DIA_ANTES
+}
+
 enum ReminderEstado {
   PENDIENTE
   ENVIADO
@@ -109,6 +115,7 @@ model Patient {
   nombre           String
   fechaNacimiento  DateTime?
   contacto         String?
+  email            String?
   estado           PatientEstado @default(ACTIVO)
   creadaEn         DateTime      @default(now())
   actualizadaEn    DateTime      @updatedAt
@@ -297,15 +304,17 @@ model EmotionMetric {
 }
 
 model Reminder {
-  id             String         @id @default(cuid())
-  appointmentId  String
-  canal          ReminderCanal  @default(EMAIL)
-  programadoPara DateTime
-  enviadoEn      DateTime?
-  estado         ReminderEstado @default(PENDIENTE)
-  creadaEn       DateTime       @default(now())
+  id                String         @id @default(cuid())
+  appointmentId     String
+  tipo              ReminderTipo
+  destinatarioEmail String
+  canal             ReminderCanal  @default(EMAIL)
+  programadoPara    DateTime
+  enviadoEn         DateTime?
+  estado            ReminderEstado @default(PENDIENTE)
+  creadaEn          DateTime       @default(now())
 
-  appointment    Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment       Appointment    @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 
   @@index([appointmentId])
   @@index([programadoPara])
