@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   cancelAppointment,
   createAppointment,
+  rescheduleAppointment,
 } from "@/lib/dal/appointments";
 
 const appointmentSchema = z.object({
@@ -13,6 +14,12 @@ const appointmentSchema = z.object({
   inicio: z.string().min(1),
   fin: z.string().min(1),
   recordarPaciente: z.boolean().optional().default(false),
+});
+
+const rescheduleSchema = z.object({
+  appointmentId: z.string().min(1),
+  inicio: z.string().min(1),
+  fin: z.string().min(1),
 });
 
 export type AppointmentActionResult =
@@ -45,6 +52,34 @@ export async function createAppointmentAction(input: {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "No se pudo crear la cita",
+    };
+  }
+}
+
+export async function rescheduleAppointmentAction(input: {
+  appointmentId: string;
+  inicio: string;
+  fin: string;
+}): Promise<AppointmentActionResult> {
+  const parsed = rescheduleSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Datos inválidos",
+    };
+  }
+  try {
+    await rescheduleAppointment(
+      parsed.data.appointmentId,
+      new Date(parsed.data.inicio),
+      new Date(parsed.data.fin),
+    );
+    revalidatePath("/agenda");
+    return { ok: true, id: parsed.data.appointmentId };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo reprogramar la cita",
     };
   }
 }

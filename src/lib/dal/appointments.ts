@@ -26,6 +26,38 @@ function ownership(ctx: Awaited<ReturnType<typeof requireContext>>) {
   return ctx.rol === "ADMIN" ? {} : { psicologoId: ctx.userId };
 }
 
+function buildReminderRows(params: {
+  inicio: Date;
+  psicologoEmail: string | null | undefined;
+  patientEmail: string | null | undefined;
+  recordarPaciente: boolean;
+}): { tipo: ReminderTipo; programadoPara: Date; email: string }[] {
+  const { inicio, psicologoEmail, patientEmail, recordarPaciente } = params;
+  const reminders: { tipo: ReminderTipo; programadoPara: Date; email: string }[] = [];
+  if (psicologoEmail) {
+    reminders.push(
+      {
+        tipo: "PSICOLOGO_DIA_ANTES",
+        programadoPara: new Date(inicio.getTime() - DAY),
+        email: psicologoEmail,
+      },
+      {
+        tipo: "PSICOLOGO_HORA_ANTES",
+        programadoPara: new Date(inicio.getTime() - HOUR),
+        email: psicologoEmail,
+      },
+    );
+  }
+  if (recordarPaciente && patientEmail) {
+    reminders.push({
+      tipo: "PACIENTE_DIA_ANTES",
+      programadoPara: new Date(inicio.getTime() - DAY),
+      email: patientEmail,
+    });
+  }
+  return reminders;
+}
+
 export async function createAppointment(input: AppointmentCreateInput) {
   const ctx = await requireContext();
   const patient = await prisma.patient.findFirst({
@@ -53,32 +85,12 @@ export async function createAppointment(input: AppointmentCreateInput) {
     },
   });
 
-  const reminders: {
-    tipo: ReminderTipo;
-    programadoPara: Date;
-    email: string;
-  }[] = [];
-  if (psicologo?.email) {
-    reminders.push(
-      {
-        tipo: "PSICOLOGO_DIA_ANTES",
-        programadoPara: new Date(input.inicio.getTime() - DAY),
-        email: psicologo.email,
-      },
-      {
-        tipo: "PSICOLOGO_HORA_ANTES",
-        programadoPara: new Date(input.inicio.getTime() - HOUR),
-        email: psicologo.email,
-      },
-    );
-  }
-  if (input.recordarPaciente && patient.email) {
-    reminders.push({
-      tipo: "PACIENTE_DIA_ANTES",
-      programadoPara: new Date(input.inicio.getTime() - DAY),
-      email: patient.email,
-    });
-  }
+  const reminders = buildReminderRows({
+    inicio: input.inicio,
+    psicologoEmail: psicologo?.email,
+    patientEmail: patient.email,
+    recordarPaciente: input.recordarPaciente,
+  });
 
   if (reminders.length > 0) {
     await prisma.reminder.createMany({
@@ -93,6 +105,62 @@ export async function createAppointment(input: AppointmentCreateInput) {
 
   await audit(ctx, "appointment.create", appointment.id);
   return appointment;
+}
+
+export async function rescheduleAppointment(
+  appointmentId: string,
+  inicio: Date,
+  fin: Date,
+) {
+  const ctx = await requireContext();
+  const appt = await prisma.appointment.findFirst({
+    where: {
+      id: appointmentId,
+      orgId: ctx.orgId,
+      ...ownership(ctx),
+      estado: { not: "CANCELADA" },
+    },
+    include: { patient: { select: { email: true } } },
+  });
+  if (!appt) notFound();
+
+  const recordarPaciente = await prisma.reminder.findFirst({
+    where: { appointmentId, tipo: "PACIENTE_DIA_ANTES" },
+    select: { id: true },
+  });
+
+  const psicologo = await prisma.user.findUnique({
+    where: { id: appt.psicologoId },
+    select: { email: true },
+  });
+
+  await prisma.appointment.update({
+    where: { id: appt.id },
+    data: { inicio, fin },
+  });
+  await prisma.reminder.deleteMany({
+    where: { appointmentId: appt.id, estado: "PENDIENTE" },
+  });
+
+  const reminders = buildReminderRows({
+    inicio,
+    psicologoEmail: psicologo?.email,
+    patientEmail: appt.patient.email,
+    recordarPaciente: !!recordarPaciente,
+  });
+
+  if (reminders.length > 0) {
+    await prisma.reminder.createMany({
+      data: reminders.map((r) => ({
+        appointmentId: appt.id,
+        tipo: r.tipo,
+        destinatarioEmail: r.email,
+        programadoPara: r.programadoPara,
+      })),
+    });
+  }
+
+  await audit(ctx, "appointment.reschedule", appointmentId);
 }
 
 export async function listAppointments() {

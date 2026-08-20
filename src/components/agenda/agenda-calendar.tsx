@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   cancelAppointmentAction,
   createAppointmentAction,
+  rescheduleAppointmentAction,
 } from "@/app/actions/appointments";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ export function AgendaCalendar({
   const [view, setView] = useState<"month" | "week">("month");
   const [cursor, setCursor] = useState<Date>(() => new Date());
   const [showNew, setShowNew] = useState(false);
+  const [selected, setSelected] = useState<Appointment | null>(null);
 
   const byDay = useMemo(() => {
     const map = new Map<string, Appointment[]>();
@@ -176,13 +178,15 @@ export function AgendaCalendar({
                 </span>
                 <div className="mt-1 space-y-0.5">
                   {items.slice(0, 3).map((a) => (
-                    <div
+                    <button
                       key={a.id}
-                      className="truncate rounded bg-secondary px-1.5 py-0.5 text-[11px]"
+                      type="button"
+                      onClick={() => setSelected(a)}
+                      className="block w-full truncate rounded bg-secondary px-1.5 py-0.5 text-left text-[11px] hover:bg-secondary/70"
                       title={`${hora(a.inicio)} · ${a.patient.nombre}`}
                     >
                       {hora(a.inicio)} {a.patient.nombre}
-                    </div>
+                    </button>
                   ))}
                   {items.length > 3 && (
                     <div className="text-[10px] text-muted-foreground">
@@ -205,11 +209,15 @@ export function AgendaCalendar({
                 </div>
                 <div className="space-y-1.5">
                   {items.map((a) => (
-                    <div key={a.id} className="rounded border p-1.5 text-xs space-y-1">
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setSelected(a)}
+                      className="w-full rounded border p-1.5 text-left text-xs space-y-1 hover:bg-muted"
+                    >
                       <p className="font-medium">{hora(a.inicio)}</p>
                       <p>{a.patient.nombre}</p>
-                      <CancelButton appointmentId={a.id} />
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -226,28 +234,150 @@ export function AgendaCalendar({
           </div>
         </div>
       )}
+
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-lg space-y-4">
+            <AppointmentDetail
+              appointment={selected}
+              onClose={() => setSelected(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function CancelButton({ appointmentId }: { appointmentId: string }) {
+function AppointmentDetail({
+  appointment,
+  onClose,
+}: {
+  appointment: Appointment;
+  onClose: () => void;
+}) {
   const [pending, startTransition] = useTransition();
-  function onCancel() {
+  const [reprogramar, setReprogramar] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const inicioDate = new Date(appointment.inicio);
+  const finDate = new Date(appointment.fin);
+  const duracionMin = Math.round(
+    (finDate.getTime() - inicioDate.getTime()) / 60000,
+  );
+
+  function onCancelar() {
     if (!confirm("¿Cancelar esta cita?")) return;
+    setError(null);
     startTransition(async () => {
-      await cancelAppointmentAction(appointmentId);
-      window.location.reload();
+      const result = await cancelAppointmentAction(appointment.id);
+      if (result.ok) {
+        onClose();
+        window.location.reload();
+      } else {
+        setError(result.error);
+      }
     });
   }
+
+  function onSubmitReprogramar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const form = new FormData(e.currentTarget);
+    const fecha = String(form.get("fecha") ?? "");
+    const hora = String(form.get("hora") ?? "");
+    if (!fecha || !hora) {
+      setError("Selecciona fecha y hora.");
+      return;
+    }
+    const inicioLocal = new Date(`${fecha}T${hora}`);
+    const finLocal = new Date(inicioLocal.getTime() + duracionMin * 60000);
+
+    startTransition(async () => {
+      const result = await rescheduleAppointmentAction({
+        appointmentId: appointment.id,
+        inicio: inicioLocal.toISOString(),
+        fin: finLocal.toISOString(),
+      });
+      if (result.ok) {
+        onClose();
+        window.location.reload();
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  if (reprogramar) {
+    return (
+      <form onSubmit={onSubmitReprogramar} className="space-y-3">
+        <h2 className="text-lg font-semibold">Reprogramar cita</h2>
+        <p className="text-sm text-muted-foreground">{appointment.patient.nombre}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="r-fecha">Fecha</Label>
+            <Input
+              id="r-fecha"
+              name="fecha"
+              type="date"
+              defaultValue={inicioDate.toISOString().slice(0, 10)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="r-hora">Hora</Label>
+            <Input
+              id="r-hora"
+              name="hora"
+              type="time"
+              defaultValue={inicioDate.toTimeString().slice(0, 5)}
+            />
+          </div>
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={() => setReprogramar(false)}>
+            Atrás
+          </Button>
+          <Button type="submit" disabled={pending}>
+            {pending ? "Guardando…" : "Guardar nueva fecha"}
+          </Button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onCancel}
-      disabled={pending}
-      className="text-[11px] text-destructive hover:underline disabled:opacity-50"
-    >
-      {pending ? "Cancelando…" : "Cancelar"}
-    </button>
+    <div className="space-y-4">
+      <h2 className="text-lg font-semibold">{appointment.patient.nombre}</h2>
+      <p className="text-sm text-muted-foreground">
+        {inicioDate.toLocaleString("es-MX", {
+          dateStyle: "full",
+          timeStyle: "short",
+        })}
+      </p>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cerrar
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setReprogramar(true)}
+          disabled={pending}
+        >
+          Reprogramar
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={onCancelar}
+          disabled={pending}
+        >
+          {pending ? "Cancelando…" : "Cancelar cita"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
