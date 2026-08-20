@@ -1,0 +1,15 @@
+name: Enviar recordatorios
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar /api/cron/reminders
+        run: |
+          curl -sS -X GET "https://psicologysystem.vercel.app/api/cron/reminders" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
