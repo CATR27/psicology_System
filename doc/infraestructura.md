@@ -6,9 +6,13 @@
 |---|---|---|---|
 | **Neon** (Postgres) | Base de datos | Free 0.5 GB | `DATABASE_URL` |
 | **Clerk** | Autenticación + organizaciones | Hobby (gratis) | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET` |
-| **Vercel** | Hosting + Cron Jobs | Hobby (gratis) | `CRON_SECRET` |
+| **Vercel** | Hosting | Hobby (gratis) | ver notas |
+| **GitHub Actions** | Cron de recordatorios (cada 15 min) | Gratis | `CRON_SECRET` (secreto del repo) |
 | **Sentry** | Monitoreo de errores | Developer (gratis) | `SENTRY_DSN` |
 | **Gmail (SMTP)** | Envío de recordatorios | Cuenta Google | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` |
+
+> ⚠️ **Cron**: se usa GitHub Actions (`.github/workflows/reminders.yml`), NO
+> Vercel Cron. El `vercel.json` con `crons` rompía el deploy en Hobby.
 
 ## Servicios futuros (planeados)
 
@@ -20,7 +24,7 @@
 
 ## Variables de entorno
 
-**Obligatorias (todas en `.env.local` local y en Vercel):**
+**Obligatorias (en `.env.local` local y en Vercel):**
 
 | Variable | Descripción |
 |---|---|
@@ -30,7 +34,16 @@
 | `CLERK_WEBHOOK_SECRET` | Firma del webhook de Clerk (`whsec_...`). |
 | `SENTRY_DSN` | DSN de Sentry. |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` | Credenciales SMTP (Gmail: host `smtp.gmail.com`, puerto `465`). |
-| `CRON_SECRET` | Protege `/api/cron/reminders` (Vercel Cron lo envía como `Authorization: Bearer`). |
+| `CRON_SECRET` | Protege `/api/cron/reminders`. |
+
+**Secreto en GitHub** (Settings → Secrets and variables → Actions):
+
+| Nombre | Valor |
+|---|---|
+| `CRON_SECRET` | El mismo valor que `CRON_SECRET` en Vercel. El workflow lo envía como `Authorization: Bearer`. |
+
+> `CRON_SECRET` debe ser **igual en Vercel y en GitHub**: Vercel lo valida en el
+> endpoint `/api/cron/reminders`, y GitHub Actions lo envía en el encabezado.
 
 **Futuras (cuando se activen Fases 2 y 3):**
 

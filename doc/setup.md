@@ -28,8 +28,18 @@ npx prisma generate # regenerar el cliente si cambia el schema
 
 ## Despliegue (Vercel)
 
-- Repo conectado a Vercel (branch `main` → deploy automático).
-- **Cron**: definido en `vercel.json` (`/api/cron/reminders` cada 15 min).
+- Repo conectado a Vercel (branch `main` → deploy automático al hacer push).
+- **NO usar `vercel.json` con `crons`** (rompe el deploy en Hobby). El cron de
+  recordatorios se maneja con **GitHub Actions** (`.github/workflows/reminders.yml`).
 - Al agregar/quitar variables de entorno en Vercel, hacer **Redeploy**.
+- Requiere el **secreto `CRON_SECRET` en GitHub** (Settings → Secrets → Actions)
+  para que el workflow llame a `/api/cron/reminders`.
 - El webhook de Clerk apunta a
   `https://psicologysystem.vercel.app/api/webhooks/clerk`.
+
+## Cron (recordatorios)
+
+- Workflow: `.github/workflows/reminders.yml`
+- Frecuencia: cada 15 min (`*/15 * * * *`) + disparo manual (`workflow_dispatch`).
+- Llama a `https://psicologysystem.vercel.app/api/cron/reminders` con
+  `Authorization: Bearer ${{ secrets.CRON_SECRET }}`.

@@ -22,6 +22,7 @@ nodemailer (correo).
 
 | Documento | Contenido |
 |---|---|
+| [CONTINUAR.md](CONTINUAR.md) | **Handoff para otra IA**: en qué quedamos, reglas y qué sigue. |
 | [estado.md](estado.md) | Estado actual por fase, funcionalidad construida, roadmap pendiente. |
 | [infraestructura.md](infraestructura.md) | Servicios usados, servicios futuros, variables de entorno. |
 | [arquitectura.md](arquitectura.md) | Estructura del proyecto, decisiones clave, flujos, seguridad. |
