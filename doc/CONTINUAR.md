@@ -10,8 +10,9 @@ clínica de psicología, desplegada en **Vercel**. Ya funciona: registro/login,
 pacientes, **historia clínica** (formato UAQ con autosave y %), **formato de
 consulta por sesión** (append-only, con firma), **agenda con calendario**,
 **recordatorios por correo al psicólogo** (Gmail SMTP + cron-job.org
-primario / GitHub Actions respaldo, cada 15 min), y **grabación de audio →
-transcripción** (R2 + Deepgram, probado con audio real de punta a punta).
+primario / GitHub Actions respaldo, cada 15 min), **grabación de audio →
+transcripción** (R2 + Deepgram, probado con audio real de punta a punta), y
+**borrador de nota generado por IA** (Gemini, al terminar de transcribir).
 
 ## Qué está TERMINADO y FUNCIONANDO
 
@@ -36,6 +37,15 @@ transcripción** (R2 + Deepgram, probado con audio real de punta a punta).
   (puede tardar mucho o no disparar solo — confirmado en pruebas reales),
   por eso el primario es cron-job.org. Verificado con disparo automático
   real (no solo manual) para recordatorios.
+- Fase 3 (parcial): al guardar el transcript, si la sesión no tiene nota
+  todavía, Gemini (`gemini-3.1-flash-lite`, Tier 1 pago activado) llena
+  los 5 campos del formato de sesión y crea la nota `BORRADOR`
+  (`generadaPorIa: true`) — nunca se firma sola, el editor muestra un
+  aviso. `store: false` en la llamada para que Google no retenga el
+  intercambio. Probado con `interactions.create` real contra un
+  transcript real, buena calidad de salida. Falta: banner dedicado de
+  riesgo (va como texto dentro de "observaciones" por ahora), citar
+  timestamps, comparación de evolución entre sesiones.
 
 ## Cómo probar / en qué estamos
 
@@ -66,10 +76,12 @@ transcripción** (R2 + Deepgram, probado con audio real de punta a punta).
 
 ## Lo que SIGUE (en orden sugerido)
 
-1. **Fase 3 — IA**: generar el **formato de consulta** automáticamente con
-   **Gemini** (nivel de pago obligatorio) desde el transcript diarizado ya
-   disponible. Requiere `GEMINI_API_KEY` (PUERTA del humano + activar
-   facturación en Google Cloud, no basta la API key).
+1. **Fase 3 restante**: banner dedicado y siempre visible para señales de
+   riesgo (hoy va como texto dentro de "observaciones"), citar el
+   timestamp de cada afirmación (permite auditar alucinaciones), registrar
+   costo real (`AiAnalysis.tokensIn/tokensOut/costoUsd` — el modelo ya
+   existe en el schema, no se está usando), comparación de evolución entre
+   sesiones (`EmotionMetric`).
 2. **Fase 5**: dashboard de evolución, búsqueda full-text, admin, accesibilidad,
    PDF con logos y firmas digitales.
 3. **Legal** (antes de datos reales): aviso de privacidad, consentimiento firmado,
@@ -85,7 +97,8 @@ transcripción** (R2 + Deepgram, probado con audio real de punta a punta).
 ---
 
 *Última actualización: 2026-08-23 — Fase 2 completa (grabación → R2 →
-Deepgram → visor de transcript + barredor de reintentos); cron movido a
-cron-job.org (primario) + GitHub Actions (respaldo); recordatorio al
+Deepgram → visor de transcript + barredor de reintentos); Fase 3 arrancada
+(Gemini genera el borrador de nota automático al transcribir); cron movido
+a cron-job.org (primario) + GitHub Actions (respaldo); recordatorio al
 paciente removido (solo psicólogo); reprogramar/cancelar cita desde modal
 de detalle.*

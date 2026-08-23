@@ -13,6 +13,7 @@
 | **Gmail (SMTP)** | Envío de recordatorios | Cuenta Google | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` |
 | **Cloudflare R2** | Almacenar audio de sesiones | Free 10GB, egress $0 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` |
 | **Deepgram** | Transcripción de audio (nova-3, es, diarización) | $200 crédito gratis | `DEEPGRAM_API_KEY` |
+| **Gemini (Google AI)** | Generar borrador de nota desde el transcript | Nivel de pago (Tier 1), prepago mínimo $10 USD | `GEMINI_API_KEY`, `GEMINI_MODEL` |
 
 > ⚠️ **Cron**: NO se usa Vercel Cron (el `vercel.json` con `crons` rompía el
 > deploy en Hobby). Se usan dos triggers independientes por endpoint
@@ -29,12 +30,6 @@
 > permitiendo `PUT/GET/HEAD` desde el origin de prod y `localhost:3000` —
 > si no, el navegador bloquea la subida directa aunque la URL prefirmada
 > sea válida. Ya configurado en el bucket `psicologia-audio`.
-
-## Servicios futuros (planeados)
-
-| Servicio | Uso | Estado |
-|---|---|---|
-| Gemini (Google AI) | Generación de expediente con IA | Pendiente (Fase 3) |
 
 ## Variables de entorno
 
@@ -53,6 +48,8 @@
 | `DEEPGRAM_API_KEY` | Transcripción. |
 | `APP_URL` | URL pública de la app — Deepgram la usa para el callback. |
 | `WEBHOOK_SECRET` | Protege `/api/webhooks/deepgram` y `/api/cron/sweep`. |
+| `GEMINI_API_KEY` | Nivel de pago obligatorio — nunca el free tier (Google entrena con esos datos, inaceptable con transcripciones clínicas). |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite` (balance costo/razonamiento; `gemini-3.7-flash` disponible si se necesita mejor razonamiento). |
 
 **Secretos en GitHub** (Settings → Secrets and variables → Actions):
 
@@ -63,11 +60,5 @@
 
 > Cada secreto debe ser **igual en Vercel y en GitHub** — Vercel lo valida en
 > el endpoint, GitHub Actions lo envía en el encabezado.
-
-**Futuras (cuando se active Fase 3):**
-
-| Variable | Descripción |
-|---|---|
-| `GEMINI_API_KEY`, `GEMINI_MODEL` | Gemini (nivel de pago obligatorio). |
 
 > ⚠️ Nunca commitear `.env.local` ni valores reales. Está en `.gitignore`.
