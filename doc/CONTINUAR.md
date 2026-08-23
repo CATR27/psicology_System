@@ -12,7 +12,9 @@ consulta por sesión** (append-only, con firma), **agenda con calendario**,
 **recordatorios por correo al psicólogo** (Gmail SMTP + cron-job.org
 primario / GitHub Actions respaldo, cada 15 min), **grabación de audio →
 transcripción** (R2 + Deepgram, probado con audio real de punta a punta), y
-**borrador de nota generado por IA** (Gemini, al terminar de transcribir).
+**botón "Generar con IA"** en el editor de sesión (Gemini llena el
+formulario desde la transcripción, manual — el psicólogo lo dispara y
+guarda él mismo).
 
 ## Qué está TERMINADO y FUNCIONANDO
 
@@ -37,15 +39,18 @@ transcripción** (R2 + Deepgram, probado con audio real de punta a punta), y
   (puede tardar mucho o no disparar solo — confirmado en pruebas reales),
   por eso el primario es cron-job.org. Verificado con disparo automático
   real (no solo manual) para recordatorios.
-- Fase 3 (parcial): al guardar el transcript, si la sesión no tiene nota
-  todavía, Gemini (`gemini-3.1-flash-lite`, Tier 1 pago activado) llena
-  los 5 campos del formato de sesión y crea la nota `BORRADOR`
-  (`generadaPorIa: true`) — nunca se firma sola, el editor muestra un
-  aviso. `store: false` en la llamada para que Google no retenga el
-  intercambio. Probado con `interactions.create` real contra un
-  transcript real, buena calidad de salida. Falta: banner dedicado de
-  riesgo (va como texto dentro de "observaciones" por ahora), citar
-  timestamps, comparación de evolución entre sesiones.
+- Fase 3 (parcial): botón **"Generar con IA"** (negro, borde cónico
+  animado estilo Apple Intelligence) en el editor — el psicólogo lo
+  presiona, llama a `generateNoteFromTranscriptAction`, Gemini
+  (`gemini-3.1-flash-lite`, Tier 1 pago activado) llena los 5 campos del
+  formulario en el cliente (no autoguarda). `store: false` en la llamada
+  para que Google no retenga el intercambio. **No es automático** — se
+  intentó disparar desde el webhook de Deepgram (como pedía el plan) y
+  falló en un caso real sin error visible (transcript guardado, nota
+  nunca creada — sospecha: timeout de la función serverless en Vercel).
+  Botón manual es más confiable y le da control al psicólogo. Falta:
+  banner dedicado de riesgo (va como texto dentro de "observaciones" por
+  ahora), citar timestamps, comparación de evolución entre sesiones.
 
 ## Cómo probar / en qué estamos
 
@@ -98,7 +103,7 @@ transcripción** (R2 + Deepgram, probado con audio real de punta a punta), y
 
 *Última actualización: 2026-08-23 — Fase 2 completa (grabación → R2 →
 Deepgram → visor de transcript + barredor de reintentos); Fase 3 arrancada
-(Gemini genera el borrador de nota automático al transcribir); cron movido
-a cron-job.org (primario) + GitHub Actions (respaldo); recordatorio al
-paciente removido (solo psicólogo); reprogramar/cancelar cita desde modal
-de detalle.*
+con botón manual "Generar con IA" (se intentó automático primero, falló
+por timeout probable del webhook); cron movido a cron-job.org (primario) +
+GitHub Actions (respaldo); recordatorio al paciente removido (solo
+psicólogo); reprogramar/cancelar cita desde modal de detalle.*

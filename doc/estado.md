@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Al terminar de transcribir, Gemini (`gemini-3.1-flash-lite`, nivel de pago) llena el formato de sesión (5 campos existentes) y crea la nota en `BORRADOR` automático — nunca se firma sola. Probado con transcript real. Falta: banner dedicado de señales de riesgo (por ahora van dentro de "observaciones"), citar timestamps por afirmación, comparación de evolución entre sesiones. |
+| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Falta: banner dedicado de señales de riesgo (por ahora van dentro de "observaciones"), citar timestamps por afirmación, comparación de evolución entre sesiones. |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -73,10 +73,16 @@
 > (`store: true`); con datos clínicos sensibles eso no es aceptable, se
 > desactivó explícitamente.
 >
-> **No pisa notas existentes**: si el psicólogo ya empezó una nota a mano
-> antes de que termine la transcripción, la IA no genera nada (evita
-> conflictos de versión silenciosos). Solo auto-genera la versión 1 si no
-> hay ninguna nota todavía.
+> **Botón manual, no disparo automático**: el plan original pedía encadenar
+> Gemini automáticamente en el webhook de Deepgram (`after()` tras guardar
+> el transcript). Se probó así y falló en un caso real — el transcript se
+> guardó bien pero la nota nunca se creó, sin error visible; sospecha
+> fuerte de que la función serverless de Vercel cortó a la mitad (Gemini +
+> las escrituras a BD dentro del mismo request del webhook, que tiene
+> límite de tiempo corto). Se cambió a un botón que el psicólogo presiona
+> explícitamente — llena el formulario en el cliente, no autoguarda. Más
+> confiable (fuera del ciclo de vida del webhook) y le da control al
+> psicólogo sobre cuándo generar.
 >
 > **Simplificación consciente vs. el plan**: el plan pedía citar el
 > timestamp de cada afirmación y un panel dedicado y siempre visible para
