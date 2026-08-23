@@ -396,7 +396,7 @@ Verificado leyendo `node_modules/next/dist/docs/`. **Este no es el Next.js de lo
 | Cambio | Qué hacer |
 |---|---|
 | **`middleware.ts` → `proxy.ts`** — exporta `proxy`, corre en Node.js; `runtime: 'edge'` lanza error | Codemod: `npx @next/codemod@canary middleware-to-proxy .` |
-| ⚠️ **`proxyClientMaxBodySize` = 10 MB.** Si `proxy.ts` hace match con una ruta de subida, Next bufferea el body y **lo trunca en silencio** — no falla, solo llega incompleto | El `matcher` debe excluir `/api/recordings/**` y `/api/webhooks/**`. Es la trampa más peligrosa de este proyecto |
+| ⚠️ **`proxyClientMaxBodySize` = 10 MB.** Si `proxy.ts` hace match con una ruta de subida *que recibe los bytes del archivo*, Next bufferea el body y **lo trunca en silencio** — no falla, solo llega incompleto | Solo aplica si el audio pasara por una ruta de Next. Con subida directa navegador→R2 (URLs prefirmadas, `/api/recordings/*` solo manda JSON chico) **no aplica** — de hecho excluir `api/recordings` del matcher rompe `auth()` de Clerk en esas rutas (visto en real: "Clerk: auth() was called but Clerk can't detect usage of clerkMiddleware()"). El matcher debe excluir solo `/api/webhooks/**` y `/api/cron/**` (sin sesión de Clerk, usan su propio secreto) |
 | Sin `matcher`, `proxy` corre en **cada** request, incluido `_next/static` | `matcher` explícito siempre |
 | **APIs dinámicas 100% async** — `cookies()`, `headers()`, `params`, `searchParams` ya no tienen versión síncrona | `const { id } = await params`. Correr `next typegen` → `PageProps<'/pacientes/[id]'>`, `RouteContext<'/api/...'>` |
 | **Server Actions**: body de 1 MB y despacho **secuencial** (uno a la vez por cliente) | Nada de subir archivos por Server Action; no paralelizar con `Promise.all` |

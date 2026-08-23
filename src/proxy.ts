@@ -4,7 +4,9 @@ export default clerkMiddleware();
 
 export const config = {
   matcher: [
-    // CRÍTICO: excluye subidas y webhooks, o Next trunca los bodies en silencio
-    "/((?!_next|api/recordings|api/webhooks|api/cron|.*\\.(?:png|jpg|svg|ico)$).*)",
+    // Solo se excluyen webhooks/cron (no llevan sesión de Clerk, usan su
+    // propio secreto). api/recordings SÍ pasa por Clerk: esas rutas solo
+    // mandan JSON chico, el audio va directo del navegador a R2.
+    "/((?!_next|api/webhooks|api/cron|.*\\.(?:png|jpg|svg|ico)$).*)",
   ],
 };
