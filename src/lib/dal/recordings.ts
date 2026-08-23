@@ -3,6 +3,7 @@ import "server-only";
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import {
   createMultipartUpload,
   presignUploadPart,
@@ -11,7 +12,12 @@ import {
   presignGetObject,
 } from "@/lib/r2";
 import { startTranscription } from "@/lib/deepgram";
-import { generateFormatoSesion, reviseFormatoSesion } from "@/lib/ai/gemini";
+import {
+  generateFormatoSesion,
+  reviseFormatoSesion,
+  calcularCostoUsd,
+  type AiUsage,
+} from "@/lib/ai/gemini";
 import { formatTimestamp } from "@/lib/audio-seek";
 import type { FormatoSesionRevisableFields } from "@/lib/schemas/formato-sesion";
 
@@ -204,6 +210,25 @@ export async function saveTranscript(recordingId: string, dgResult: unknown) {
   });
 }
 
+function recordAiAnalysis(
+  sessionId: string,
+  tipo: string,
+  payload: Record<string, unknown>,
+  usage: AiUsage,
+) {
+  return prisma.aiAnalysis.create({
+    data: {
+      sessionId,
+      tipo,
+      payloadJson: payload as unknown as Prisma.InputJsonValue,
+      modelo: usage.modelo,
+      tokensIn: usage.tokensIn,
+      tokensOut: usage.tokensOut,
+      costoUsd: calcularCostoUsd(usage),
+    },
+  });
+}
+
 export async function generateNoteFromTranscript(sessionId: string) {
   const ctx = await requireContext();
   const session = await prisma.session.findFirst({
@@ -234,7 +259,11 @@ export async function generateNoteFromTranscript(sessionId: string) {
     return `[${ts}] ${s.hablante === "PSICOLOGO" ? "Psicólogo" : "Paciente"}: ${s.texto}`;
   });
   const memoryNotes = await listAiMemoryTextsFor(session.psicologoId);
-  const contenido = await generateFormatoSesion(lines.join("\n"), memoryNotes);
+  const { usage, ...contenido } = await generateFormatoSesion(
+    lines.join("\n"),
+    memoryNotes,
+  );
+  await recordAiAnalysis(sessionId, "formato_sesion.generar", contenido, usage);
   await audit(ctx, "note.generateAi", sessionId);
   return contenido;
 }
@@ -252,9 +281,14 @@ export async function reviseNoteWithCorrection(
   if (!session) notFound();
 
   const memoryNotes = await listAiMemoryTextsFor(session.psicologoId);
-  const revised = await reviseFormatoSesion(correction, current, memoryNotes);
+  const { fields, usage } = await reviseFormatoSesion(
+    correction,
+    current,
+    memoryNotes,
+  );
+  await recordAiAnalysis(sessionId, "formato_sesion.revisar", fields, usage);
   await audit(ctx, "note.reviseAi", sessionId);
-  return revised;
+  return fields;
 }
 
 export async function getPlaybackUrls(sessionId: string) {

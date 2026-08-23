@@ -3,6 +3,28 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import type { FormatoSesionRevisableFields } from "@/lib/schemas/formato-sesion";
 
+export type AiUsage = {
+  modelo: string;
+  tokensIn: number | null;
+  tokensOut: number | null;
+};
+
+// USD por 1M tokens. Actualizar si cambia GEMINI_MODEL o Google ajusta precios.
+const PRECIOS_USD_POR_1M: Record<string, { in: number; out: number }> = {
+  "gemini-3.1-flash-lite": { in: 0.25, out: 1.5 },
+  "gemini-3.7-flash": { in: 0.75, out: 3.75 },
+  "gemini-2.5-flash-lite": { in: 0.1, out: 0.4 },
+};
+
+export function calcularCostoUsd(usage: AiUsage): number | null {
+  const precio = PRECIOS_USD_POR_1M[usage.modelo];
+  if (!precio || usage.tokensIn == null || usage.tokensOut == null) return null;
+  return (
+    (usage.tokensIn / 1_000_000) * precio.in +
+    (usage.tokensOut / 1_000_000) * precio.out
+  );
+}
+
 const RESPONSE_SCHEMA = {
   type: "object",
   properties: {
@@ -116,17 +138,24 @@ export async function reviseFormatoSesion(
   correction: { timestamp: string; oldText: string; newText: string },
   current: FormatoSesionRevisableFields,
   memoryNotes: string[] = [],
-): Promise<Partial<FormatoSesionRevisableFields>> {
+): Promise<{ fields: Partial<FormatoSesionRevisableFields>; usage: AiUsage }> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const modelo = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
   const interaction = await ai.interactions.create({
-    model: process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
+    model: modelo,
     input: buildRevisionPrompt(correction, current, memoryNotes),
     store: false,
     response_format: [
       { type: "text", mime_type: "application/json", schema: REVISION_RESPONSE_SCHEMA },
     ],
   });
+
+  const usage: AiUsage = {
+    modelo,
+    tokensIn: interaction.usage?.total_input_tokens ?? null,
+    tokensOut: interaction.usage?.total_output_tokens ?? null,
+  };
 
   const text = interaction.output_text;
   if (!text) throw new Error("Gemini no devolvió contenido");
@@ -145,7 +174,7 @@ export async function reviseFormatoSesion(
       : [];
   }
 
-  return revised;
+  return { fields: revised, usage };
 }
 
 export async function generateFormatoSesion(
@@ -153,9 +182,10 @@ export async function generateFormatoSesion(
   memoryNotes: string[] = [],
 ) {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const modelo = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
   const interaction = await ai.interactions.create({
-    model: process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
+    model: modelo,
     input: buildPrompt(transcript, memoryNotes),
     store: false,
     response_format: [
@@ -163,11 +193,18 @@ export async function generateFormatoSesion(
     ],
   });
 
+  const usage: AiUsage = {
+    modelo,
+    tokensIn: interaction.usage?.total_input_tokens ?? null,
+    tokensOut: interaction.usage?.total_output_tokens ?? null,
+  };
+
   const text = interaction.output_text;
   if (!text) throw new Error("Gemini no devolvió contenido");
 
   const parsed = JSON.parse(text) as Record<string, unknown>;
   return {
+    usage,
     objetivoSesion: String(parsed.objetivoSesion ?? ""),
     temasCentrales: String(parsed.temasCentrales ?? ""),
     senalamientos: String(parsed.senalamientos ?? ""),
