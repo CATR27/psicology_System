@@ -1,5 +1,7 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
+
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@/generated/prisma/enums";
 
@@ -55,6 +57,9 @@ export async function syncUserFromMembership(
     update: {},
   });
 
+  const conflict = await rejectIfConflictingOrg(user.user_id, org.id);
+  if (conflict) return conflict;
+
   const nombre = [user.first_name, user.last_name]
     .filter(Boolean)
     .join(" ")
@@ -102,6 +107,9 @@ export async function syncUserFromEvent(user: UserEventInput) {
     update: {},
   });
 
+  const conflict = await rejectIfConflictingOrg(user.id, org.id);
+  if (conflict) return conflict;
+
   return prisma.user.upsert({
     where: { clerkUserId: user.id },
     create: {
@@ -118,6 +126,30 @@ export async function syncUserFromEvent(user: UserEventInput) {
       email: email ?? undefined,
     },
   });
+}
+
+/**
+ * Modelo de la app: 1 org por usuario (User.orgId es escalar, sin tabla de
+ * membresías). Si Clerk manda una membresía de una org distinta a la que el
+ * usuario ya tiene en BD, no se sobrescribe en silencio — se rechaza y se
+ * reporta la anomalía. La primera org que sincronizó gana.
+ */
+async function rejectIfConflictingOrg(clerkUserId: string, incomingOrgId: string) {
+  const existing = await prisma.user.findUnique({
+    where: { clerkUserId },
+    select: { id: true, orgId: true, clerkUserId: true },
+  });
+  if (!existing || existing.orgId === incomingOrgId) return null;
+
+  Sentry.captureMessage("Membresía de organización en conflicto rechazada", {
+    level: "warning",
+    extra: {
+      clerkUserId,
+      orgIdExistente: existing.orgId,
+      orgIdEntrante: incomingOrgId,
+    },
+  });
+  return existing;
 }
 
 export async function deleteUser(clerkUserId: string) {

@@ -40,8 +40,18 @@ src/
 
 ## Flujos principales
 
-1. **Registro/login** → Clerk crea usuario + organización → el webhook los
-   sincroniza en la BDD.
+1. **Registro/login (modelo cerrado, solo invitación)** → nadie se
+   auto-registra creando una organización nueva. Un admin crea una
+   organización (clínica) por ahora fuera de la app; invita psicólogos desde
+   `/organizacion/miembros` (server action `inviteMember`, API de Clerk
+   `createOrganizationInvitation`); el invitado acepta el link → Clerk lo une
+   a esa org y la deja activa en sesión → el webhook sincroniza `User` en la
+   BDD **solo cuando ya hay membresía de org** (el evento `user.created` sin
+   org es un no-op, ver `syncUserFromEvent`). Si `requireContext` no
+   encuentra `orgId` activo o el `User`/`Organization` aún no están
+   sincronizados, redirige a `/sin-organizacion` (no a `/sign-in`, para no
+   generar un loop confuso a alguien ya logueado). Ver "Nota sobre
+   organizaciones e invitaciones" en `doc/estado.md`.
 2. **Paciente** → crear/editar → dashboard con cards.
 3. **Historia clínica** → wizard de 11 secciones, autosave y % de progreso.
 4. **Consulta** → sesión → formato de consulta → firmar (append-only) → PDF.

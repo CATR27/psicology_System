@@ -1,13 +1,33 @@
+"use client";
+
 import Link from "next/link";
 import {
-  OrganizationSwitcher,
   Show,
   SignInButton,
-  SignUpButton,
   UserButton,
+  useAuth,
+  useOrganization,
 } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
+
+function OrgName() {
+  const { organization } = useOrganization();
+  if (!organization) return null;
+  return (
+    <span className="text-sm text-muted-foreground">{organization.name}</span>
+  );
+}
+
+function MiembrosLink() {
+  const { orgRole } = useAuth();
+  if (orgRole !== "org:admin") return null;
+  return (
+    <Link href="/organizacion/miembros" className="text-muted-foreground hover:text-foreground">
+      Miembros
+    </Link>
+  );
+}
 
 export function AppNav() {
   return (
@@ -25,6 +45,7 @@ export function AppNav() {
               <Link href="/agenda" className="text-muted-foreground hover:text-foreground">
                 Agenda
               </Link>
+              <MiembrosLink />
             </nav>
           </Show>
         </div>
@@ -35,12 +56,9 @@ export function AppNav() {
                 Iniciar sesión
               </Button>
             </SignInButton>
-            <SignUpButton mode="modal">
-              <Button size="sm">Registrarse</Button>
-            </SignUpButton>
           </Show>
           <Show when="signed-in">
-            <OrganizationSwitcher />
+            <OrgName />
             <UserButton />
           </Show>
         </div>

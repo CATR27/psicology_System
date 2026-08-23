@@ -1,4 +1,4 @@
-import { Show, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { Show, SignInButton } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
 
@@ -18,14 +18,9 @@ export default function Home() {
             <SignInButton mode="modal">
               <Button variant="outline">Iniciar sesión</Button>
             </SignInButton>
-            <SignUpButton mode="modal">
-              <Button>Crear cuenta</Button>
-            </SignUpButton>
           </div>
-        </Show>
-        <Show when="signed-in">
           <p className="text-sm text-muted-foreground">
-            Bienvenido. Crea una organización para comenzar.
+            El acceso es solo por invitación de tu clínica.
           </p>
         </Show>
       </div>

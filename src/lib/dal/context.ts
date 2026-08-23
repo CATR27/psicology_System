@@ -17,7 +17,8 @@ export type Ctx = {
 
 export const requireContext = cache(async (): Promise<Ctx> => {
   const { userId, orgId } = await auth();
-  if (!userId || !orgId) redirect("/sign-in");
+  if (!userId) redirect("/sign-in");
+  if (!orgId) redirect("/sin-organizacion?motivo=sin-org-activa");
 
   const [org, user] = await Promise.all([
     prisma.organization.findUnique({
@@ -30,7 +31,7 @@ export const requireContext = cache(async (): Promise<Ctx> => {
     }),
   ]);
 
-  if (!org || !user) redirect("/sign-in");
+  if (!org || !user) redirect("/sin-organizacion?motivo=sincronizando");
 
   return {
     userId: user.id,

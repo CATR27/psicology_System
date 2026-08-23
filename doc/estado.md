@@ -181,6 +181,48 @@
 > sale de datos que el psicólogo ya capturó al llenar/generar la nota de
 > cada sesión.
 
+## Nota sobre organizaciones e invitaciones (modelo cerrado)
+
+> **Decisión explícita del usuario**: nadie se auto-registra creando una
+> organización nueva. Una organización (clínica) se crea manualmente por
+> ahora (fuera de la app, vía Clerk Dashboard); todo psicólogo entra
+> exclusivamente por invitación.
+>
+> - Página `/organizacion/miembros` (solo admin, `ctx.rol === "ADMIN"`):
+>   lista miembros de la org (query directa a `User`, ya sincronizado) y un
+>   form para invitar por correo (`src/lib/dal/invitations.ts` →
+>   `clerkClient().organizations.createOrganizationInvitation`). Clerk manda
+>   el correo con su propia plantilla — no usa el mailer de Brevo/Gmail del
+>   proyecto. Rol se manda como `org:member` (Psicólogo) / `org:recepcion`
+>   (Recepción) / `org:admin` (Admin), mismo mapeo que `mapRole()` en
+>   `src/lib/dal/sync.ts`.
+> - El link de invitación de Clerk (`__clerk_ticket`) hace, por default, que
+>   `<SignUp>` una la cuenta nueva a la org del ticket y la deje activa en
+>   sesión — comportamiento nativo de Clerk, no se tocó `sign-up/page.tsx`.
+> - Se quitó `<SignUpButton>` del nav y de la landing (`src/app/page.tsx`):
+>   con modelo cerrado no se invita a nadie a auto-registrarse.
+> - **Pendiente de confirmar en Clerk Dashboard (no es código)**: "Personal
+>   accounts" desactivado (si no, alguien puede registrarse sin org y queda
+>   con sesión pero sin fila `User` en BD — `syncUserFromEvent` es un no-op
+>   sin membresía), sign-up restringido a invitación, y que los roles custom
+>   `org:admin`/`org:recepcion` existan en el dashboard.
+>
+> **1 org por usuario, sin excepción**: `User.orgId` es un escalar
+> obligatorio (no hay tabla de membresías). Si Clerk llegara a mandar una
+> segunda membresía de una org distinta para el mismo usuario,
+> `syncUserFromMembership`/`syncUserFromEvent` (`src/lib/dal/sync.ts`) ya NO
+> sobrescriben `orgId` en silencio — la rechazan (`rejectIfConflictingOrg`,
+> gana la primera org sincronizada) y reportan la anomalía a Sentry
+> (`captureMessage`, solo IDs, sin PII). El `<OrganizationSwitcher>` del nav
+> se reemplazó por el nombre de la org de solo lectura — no hay forma de
+> crear ni cambiar de org desde la UI.
+>
+> **`requireContext` ya no manda a `/sign-in` en silencio**: si el usuario
+> está logueado pero sin `orgId` activo, o si `Organization`/`User` aún no
+> están sincronizados (carrera con el webhook), redirige a
+> `/sin-organizacion` con un mensaje explicando qué pasa y botón de
+> recargar/cerrar sesión.
+
 ## Roadmap pendiente
 
 1. **Fase 3 restante** — registrar costo real por sesión (`AiAnalysis`).
