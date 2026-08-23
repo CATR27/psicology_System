@@ -31,6 +31,7 @@ export async function inviteMember(input: InvitationInput) {
     emailAddress: input.email,
     role: input.rol,
     inviterUserId: ctx.clerkUserId,
+    redirectUrl: `${process.env.APP_URL}/sign-up`,
   });
 
   await audit(ctx, "member.invite");
