@@ -10,6 +10,7 @@ const RESPONSE_SCHEMA = {
     senalamientos: { type: "string" },
     climaAfectivo: { type: "string" },
     observaciones: { type: "string" },
+    senalesRiesgo: { type: "array", items: { type: "string" } },
   },
   required: [
     "objetivoSesion",
@@ -17,6 +18,7 @@ const RESPONSE_SCHEMA = {
     "senalamientos",
     "climaAfectivo",
     "observaciones",
+    "senalesRiesgo",
   ],
 };
 
@@ -31,7 +33,7 @@ function buildPrompt(transcript: string, memoryNotes: string[]): string {
 Reglas estrictas (innegociables, ninguna preferencia de estilo las anula):
 - No diagnostiques. No inventes ni infieras nada que no se haya dicho explícitamente en la transcripción.
 - Si no hay evidencia suficiente para un campo, escribe "No hay información suficiente en la transcripción."
-- Si detectas señales de riesgo (ideación suicida, autolesión, violencia hacia sí mismo o terceros), no las minimices: enumeralas explícitamente al INICIO del campo "observaciones", precedidas por "⚠️ SEÑALES DE RIESGO DETECTADAS:" seguido de una lista.
+- Si detectas señales de riesgo (ideación suicida, autolesión, violencia hacia sí mismo o terceros), no las minimices ni las mezcles con el resto: van SIEMPRE en el campo separado "senalesRiesgo", nunca dentro de "observaciones" ni de ningún otro campo. Cada elemento de la lista debe ser una frase corta y concreta (qué se dijo y, si se puede, en qué momento). Si no hay ninguna señal, "senalesRiesgo" va vacío — no inventes una para rellenar.
 - Esta nota es un borrador para que el psicólogo la revise y edite antes de firmarla. No sustituye su criterio clínico.
 ${memoriaBlock}
 Devuelve JSON con estos campos, basados ÚNICAMENTE en lo dicho en la transcripción:
@@ -39,7 +41,8 @@ Devuelve JSON con estos campos, basados ÚNICAMENTE en lo dicho en la transcripc
 - temasCentrales: relato principal, problemáticas expresadas y motivos de preocupación del paciente.
 - senalamientos: intervenciones, encuadres, reestructuraciones y tareas asignadas por el psicólogo.
 - climaAfectivo: estado emocional dominante del paciente durante la consulta.
-- observaciones: lenguaje no verbal, puntualidad, aspectos a retomar en la siguiente sesión.
+- observaciones: lenguaje no verbal, puntualidad, aspectos a retomar en la siguiente sesión (SIN señales de riesgo, esas van aparte).
+- senalesRiesgo: lista de señales de riesgo detectadas (array vacío si no hay ninguna).
 
 Transcripción (formato "hablante: texto" por turno):
 ${transcript}`;
@@ -70,5 +73,8 @@ export async function generateFormatoSesion(
     senalamientos: String(parsed.senalamientos ?? ""),
     climaAfectivo: String(parsed.climaAfectivo ?? ""),
     observaciones: String(parsed.observaciones ?? ""),
+    senalesRiesgo: Array.isArray(parsed.senalesRiesgo)
+      ? parsed.senalesRiesgo.map((s) => String(s)).filter((s) => s.trim() !== "")
+      : [],
   };
 }

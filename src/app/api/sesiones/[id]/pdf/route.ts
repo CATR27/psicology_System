@@ -27,6 +27,7 @@ export async function GET(
       senalamientos?: string;
       climaAfectivo?: string;
       observaciones?: string;
+      senalesRiesgo?: string[];
     },
   });
 

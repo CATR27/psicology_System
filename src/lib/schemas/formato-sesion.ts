@@ -6,6 +6,7 @@ export const formatoSesionSchema = z.object({
   senalamientos: z.string().trim().min(1, "Los señalamientos son obligatorios"),
   climaAfectivo: z.string().trim().min(1, "Indica el clima afectivo"),
   observaciones: z.string().trim().optional().default(""),
+  senalesRiesgo: z.array(z.string().trim().min(1)).optional().default([]),
 });
 
 export type FormatoSesion = z.infer<typeof formatoSesionSchema>;

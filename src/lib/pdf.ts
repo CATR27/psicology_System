@@ -89,6 +89,7 @@ export function flattenSesion(data: {
     senalamientos?: string;
     climaAfectivo?: string;
     observaciones?: string;
+    senalesRiesgo?: string[];
   };
 }): PdfSection[] {
   const c = data.contenido;
@@ -97,6 +98,12 @@ export function flattenSesion(data: {
     ["Sesión", String(data.numeroSesion)],
     ["Fecha", data.fecha],
   ];
+  if (c.senalesRiesgo && c.senalesRiesgo.length > 0) {
+    rows.push([
+      "⚠ SEÑALES DE RIESGO",
+      c.senalesRiesgo.map((s) => `- ${s}`).join("\n"),
+    ]);
+  }
   if (c.objetivoSesion) rows.push(["Objetivo de la sesión", c.objetivoSesion]);
   if (c.temasCentrales) rows.push(["Temas centrales", c.temasCentrales]);
   if (c.senalamientos)

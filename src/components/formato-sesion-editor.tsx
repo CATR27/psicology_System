@@ -10,6 +10,7 @@ import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 import { setSessionDirty } from "@/lib/session-dirty";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { JesiaMemory } from "@/components/recorder/jesia-memory";
@@ -51,11 +52,14 @@ export function FormatoSesionEditor({
       senalamientos: initial?.senalamientos ?? "",
       climaAfectivo: initial?.climaAfectivo ?? "",
       observaciones: initial?.observaciones ?? "",
+      senalesRiesgo: initial?.senalesRiesgo ?? [],
     },
   });
 
   const clima = useWatch({ control, name: "climaAfectivo" });
+  const senalesRiesgo = useWatch({ control, name: "senalesRiesgo" }) ?? [];
   const allValues = useWatch({ control });
+  const [nuevaSenal, setNuevaSenal] = useState("");
 
   const initialKey = JSON.stringify({
     objetivoSesion: initial?.objetivoSesion ?? "",
@@ -63,6 +67,7 @@ export function FormatoSesionEditor({
     senalamientos: initial?.senalamientos ?? "",
     climaAfectivo: initial?.climaAfectivo ?? "",
     observaciones: initial?.observaciones ?? "",
+    senalesRiesgo: initial?.senalesRiesgo ?? [],
   });
 
   const dirty = JSON.stringify(allValues) !== initialKey;
@@ -96,6 +101,21 @@ export function FormatoSesionEditor({
     }
   }
 
+  function agregarSenal() {
+    const texto = nuevaSenal.trim();
+    if (!texto) return;
+    setValue("senalesRiesgo", [...senalesRiesgo, texto], { shouldDirty: true });
+    setNuevaSenal("");
+  }
+
+  function quitarSenal(index: number) {
+    setValue(
+      "senalesRiesgo",
+      senalesRiesgo.filter((_, i) => i !== index),
+      { shouldDirty: true },
+    );
+  }
+
   function onSubmit(values: FormatoSesion) {
     setError(null);
     startTransition(async () => {
@@ -124,6 +144,7 @@ export function FormatoSesionEditor({
       setValue("senalamientos", result.contenido.senalamientos, { shouldDirty: true });
       setValue("climaAfectivo", result.contenido.climaAfectivo, { shouldDirty: true });
       setValue("observaciones", result.contenido.observaciones, { shouldDirty: true });
+      setValue("senalesRiesgo", result.contenido.senalesRiesgo, { shouldDirty: true });
       setAiFilled(true);
     });
   }
@@ -160,6 +181,46 @@ export function FormatoSesionEditor({
           <JesiaMemory />
         </div>
       )}
+
+      <div className="space-y-2 rounded-md border-2 border-destructive bg-destructive/10 px-4 py-3">
+        <Label className="text-destructive">Señales de riesgo</Label>
+        {senalesRiesgo.length > 0 && (
+          <ul className="space-y-1">
+            {senalesRiesgo.map((s, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between gap-2 rounded bg-background px-2.5 py-1.5 text-sm"
+              >
+                <span>{s}</span>
+                <button
+                  type="button"
+                  onClick={() => quitarSenal(i)}
+                  className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex gap-2">
+          <Input
+            value={nuevaSenal}
+            onChange={(e) => setNuevaSenal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                agregarSenal();
+              }
+            }}
+            placeholder="Ej. ideación suicida mencionada al minuto 12"
+            className="text-sm"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={agregarSenal}>
+            Agregar
+          </Button>
+        </div>
+      </div>
 
       <div className="space-y-1.5">
         <Label htmlFor="objetivoSesion">Objetivo de la sesión</Label>
