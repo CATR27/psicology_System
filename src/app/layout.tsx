@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Expedientes Clínicos",
+  title: "Vera",
   description: "Sistema de expedientes clínicos para psicología",
 };
 

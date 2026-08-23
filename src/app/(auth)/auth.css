@@ -5,21 +5,22 @@
    ───────────────────────────────────────────────────────────── */
 
 .vera-auth {
-  --auth-bg: oklch(96% 0.012 300);
-  --auth-surface: oklch(99% 0.006 300);
-  --auth-fg: oklch(24% 0.04 300);
-  --auth-muted: oklch(46% 0.03 300);
-  --auth-border: oklch(88% 0.02 300);
-  --auth-accent: oklch(52% 0.19 302);
-  --auth-on-accent: oklch(99% 0.006 300);
+  /* Tokens de marca compartidos con el resto de la app — ver src/app/globals.css */
+  --auth-bg: var(--brand-bg);
+  --auth-surface: var(--brand-surface);
+  --auth-fg: var(--brand-fg);
+  --auth-muted: var(--brand-muted);
+  --auth-border: var(--brand-border);
+  --auth-accent: var(--brand-accent);
+  --auth-on-accent: var(--brand-on-accent);
 
-  --auth-accent-soft: color-mix(in oklch, var(--auth-accent) 14%, transparent);
+  --auth-accent-soft: var(--brand-accent-soft);
   --auth-fg-soft: color-mix(in oklch, var(--auth-fg) 6%, transparent);
   --auth-danger: color-mix(in oklch, var(--auth-accent) 60%, red 25%);
 
-  --auth-font-display: 'Iowan Old Style', 'Charter', Georgia, 'Times New Roman', serif;
+  --auth-font-display: var(--brand-font-display);
   --auth-font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --auth-font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --auth-font-mono: var(--brand-font-mono);
 
   --auth-fs-h1: clamp(30px, 3.4vw, 42px);
   --auth-fs-lead: 16px;
