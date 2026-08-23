@@ -8,6 +8,17 @@ import type { ConsentInput } from "@/lib/schemas/consent";
 import { requireContext } from "./context";
 import { audit } from "./audit";
 
+export async function hasActiveConsent(
+  patientId: string,
+  tipo: "GRABACION" | "TRATAMIENTO_IA",
+) {
+  const consent = await prisma.consent.findFirst({
+    where: { patientId, tipo, revocadoEn: null },
+    select: { id: true },
+  });
+  return consent !== null;
+}
+
 export async function createConsent(input: ConsentInput) {
   const ctx = await requireContext();
   const patient = await prisma.patient.findFirst({

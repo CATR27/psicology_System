@@ -198,6 +198,7 @@ model Recording {
   id            String         @id @default(cuid())
   sessionId     String
   r2Key         String?
+  uploadId      String?
   duracionSeg   Int?
   bytes         Int?
   estado        RecordingEstado @default(PENDIENTE)
