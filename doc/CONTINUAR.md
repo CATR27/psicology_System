@@ -9,25 +9,33 @@ Aplicación web **Next.js 16 + Prisma 7 + Clerk + Neon (Postgres)** para una
 clínica de psicología, desplegada en **Vercel**. Ya funciona: registro/login,
 pacientes, **historia clínica** (formato UAQ con autosave y %), **formato de
 consulta por sesión** (append-only, con firma), **agenda con calendario** y
-**recordatorios por correo** (Gmail SMTP + GitHub Actions cada 15 min).
+**recordatorios por correo al psicólogo** (Gmail SMTP + cron-job.org
+primario / GitHub Actions respaldo, cada 15 min).
 
 ## Qué está TERMINADO y FUNCIONANDO
 
 - Fase 0: auth (Clerk + organizaciones), BDD, proxy, Sentry, webhook sync, deploy.
 - Fase 1: CRUD pacientes, sesiones, consentimientos, auditoría, aislamiento por
   org/psicólogo (prueba de aislamiento OK a nivel BD).
-- Fase 4: agenda (`/agenda`, calendario mes/semana), crear/cancelar citas,
-  recordatorios al psicólogo (24h y 1h antes) y al paciente (24h, opcional).
+- Fase 4: agenda (`/agenda`, calendario mes/semana), crear/cancelar/reprogramar
+  citas (modal de detalle), recordatorios **solo al psicólogo** (24h y 1h
+  antes) con HTML profesional de marca. El paciente **no** recibe correo
+  (decisión de producto — se quitó esa opción).
 - Extras: dashboard del paciente, historia clínica UAQ, formato de sesión UAQ,
   exportación a PDF (pdf-lib), borrar sesión, alerta al salir sin guardar.
-- Cron de recordatorios: GitHub Actions (`/api/cron/reminders`) — verificado
-  (workflow OK, endpoint devuelve 200 con la llave correcta).
+- Cron de recordatorios: **cron-job.org** (primario, confiable) +
+  **GitHub Actions** (`/api/cron/reminders`, respaldo) — ambos verificados
+  con 200 OK. GH Actions **schedule solo es best-effort** (puede tardar
+  mucho o no disparar solo — confirmado en pruebas reales), por eso el
+  primario es cron-job.org.
 
 ## Cómo probar / en qué estamos
 
 - URL: `https://psicologysystem.vercel.app` (usuario: `catr2777@gmail.com`).
-- Pendiente de probar por el humano: crear una cita con hora cercana y confirmar
-  que llegan los recordatorios por correo.
+- Flujo crear cita → `Reminder` pendiente → cron dispara → correo llega,
+  verificado con disparo **manual** (workflow_dispatch / test run). Falta
+  confirmar que cron-job.org lo dispara **solo** en su intervalo automático
+  (recién configurado, esperando primer tick).
 
 ## Reglas NO NEGOCIABLES (léelas antes de tocar código)
 
@@ -64,5 +72,6 @@ consulta por sesión** (append-only, con firma), **agenda con calendario** y
 
 ---
 
-*Última actualización: 2026-08-20 — cierre de Fases 0, 1 y 4 (agenda +
-recordatorios por Gmail).*
+*Última actualización: 2026-08-23 — cron movido a cron-job.org (primario) +
+GitHub Actions (respaldo); recordatorio al paciente removido (solo
+psicólogo); reprogramar/cancelar cita desde modal de detalle.*

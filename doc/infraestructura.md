@@ -7,12 +7,22 @@
 | **Neon** (Postgres) | Base de datos | Free 0.5 GB | `DATABASE_URL` |
 | **Clerk** | Autenticación + organizaciones | Hobby (gratis) | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET` |
 | **Vercel** | Hosting | Hobby (gratis) | ver notas |
-| **GitHub Actions** | Cron de recordatorios (cada 15 min) | Gratis | `CRON_SECRET` (secreto del repo) |
+| **cron-job.org** | Cron de recordatorios, primario (cada 15 min) | Free | header `Authorization: Bearer <CRON_SECRET>` configurado en su panel |
+| **GitHub Actions** | Cron de recordatorios, respaldo (cada 15 min) | Gratis | `CRON_SECRET` (secreto del repo) |
 | **Sentry** | Monitoreo de errores | Developer (gratis) | `SENTRY_DSN` |
 | **Gmail (SMTP)** | Envío de recordatorios | Cuenta Google | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` |
 
-> ⚠️ **Cron**: se usa GitHub Actions (`.github/workflows/reminders.yml`), NO
-> Vercel Cron. El `vercel.json` con `crons` rompía el deploy en Hobby.
+> ⚠️ **Cron**: NO se usa Vercel Cron (el `vercel.json` con `crons` rompía el
+> deploy en Hobby). Se usan dos triggers independientes contra
+> `/api/cron/reminders` (idempotente — reintentar no duplica envíos):
+> **cron-job.org** como primario (scheduler dedicado, confiable) y
+> **GitHub Actions** (`.github/workflows/reminders.yml`) como respaldo.
+> Se agregó cron-job.org porque el `schedule` de GitHub Actions es
+> "best-effort" — documentado por GitHub como sin garantía de horario, y en
+> pruebas reales tardó 1h+ sin disparar ni una vez solo. Config del cronjob
+> en cron-job.org: GET a la URL del endpoint, header
+> `Authorization: Bearer <CRON_SECRET>` (mismo valor que Vercel/GitHub),
+> intervalo 15 min.
 
 ## Servicios futuros (planeados)
 
