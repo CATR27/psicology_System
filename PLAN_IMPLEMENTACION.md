@@ -491,9 +491,9 @@ GOOGLE_CLIENT_SECRET=
 # Progreso
 
 - [x] Fase 0 — Cimientos
-- [ ] Fase 1 — Expediente manual
-- [ ] Fase 2 — Audio → transcripción
+- [x] Fase 1 — Expediente manual
+- [x] Fase 2 — Audio → transcripción
 - [ ] Fase 3 — IA
-- [ ] Fase 4 — Agenda y recordatorios
-- [ ] Fase 5 — Pulido
+- [x] Fase 4 — Agenda y recordatorios
+- [ ] Fase 5 — Pulido (parcial: PDF básico hecho)
 - [ ] Checklist legal completo (obligatorio antes de datos reales)

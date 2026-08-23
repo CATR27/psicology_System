@@ -1,0 +1,15 @@
+name: Barredor de grabaciones atoradas
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep-recordings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar /api/cron/sweep
+        run: |
+          curl -sS -X GET "https://psicologysystem.vercel.app/api/cron/sweep" \
+            -H "Authorization: Bearer ${{ secrets.WEBHOOK_SECRET }}"

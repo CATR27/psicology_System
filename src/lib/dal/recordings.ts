@@ -238,6 +238,53 @@ export async function reassignSegmentSpeaker(
   await audit(ctx, "transcriptSegment.reassign", segment.id);
 }
 
+const STUCK_AFTER_MS = 30 * 60 * 1000;
+const MAX_INTENTOS = 5;
+
+export async function sweepStuckRecordings() {
+  const cutoff = new Date(Date.now() - STUCK_AFTER_MS);
+  const stuck = await prisma.recording.findMany({
+    where: {
+      estado: { in: ["SUBIDO", "TRANSCRIBIENDO"] },
+      actualizadaEn: { lte: cutoff },
+    },
+  });
+
+  let reintentados = 0;
+  for (const r of stuck) {
+    if (r.intentos >= MAX_INTENTOS || !r.r2Key) {
+      await prisma.recording.update({
+        where: { id: r.id },
+        data: { estado: "FALLIDO" },
+      });
+      continue;
+    }
+
+    try {
+      const audioUrl = await presignGetObject(r.r2Key);
+      const callbackUrl = `${process.env.APP_URL}/api/webhooks/deepgram?token=${process.env.WEBHOOK_SECRET}&recordingId=${r.id}`;
+      await startTranscription({ audioUrl, callbackUrl });
+      await prisma.recording.update({
+        where: { id: r.id },
+        data: { estado: "TRANSCRIBIENDO", intentos: { increment: 1 } },
+      });
+      reintentados++;
+    } catch (e) {
+      await prisma.recording.update({
+        where: { id: r.id },
+        data: { intentos: { increment: 1 } },
+      });
+      console.error(
+        "Reintento de transcripción falló",
+        r.id,
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
+  return { revisados: stuck.length, reintentados };
+}
+
 export async function abortRecording(recordingId: string) {
   const ctx = await requireContext();
   const recording = await getOwnedRecording(ctx, recordingId);

@@ -6,7 +6,7 @@
 |---|---|---|
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
-| Fase 2 — Audio → transcripción | ⬜ Pendiente | Grabación, subida a R2, transcripción (Deepgram). |
+| Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
 | Fase 3 — IA | ⬜ Pendiente | Generación de expediente con Gemini. |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
@@ -22,6 +22,10 @@
   de citas (modal de detalle) y recordatorios por correo al psicólogo, con
   diseño profesional (HTML con marca de la clínica).
 - **Borrar sesión** y **alerta al salir** de una sesión sin guardar.
+- **Grabador de audio + transcripción** en `/sesiones/[id]`: bloquea si no
+  hay consentimiento de GRABACION vigente, medidor de nivel, subida
+  resiliente por partes (~5MB c/u, mínimo real de R2), visor de transcript
+  editable por hablante.
 
 ## Nota sobre el deploy (importante para quien continúe)
 
@@ -46,11 +50,21 @@
 > en el enum de Prisma por las filas históricas ya enviadas, pero ya no se
 > generan filas nuevas de ese tipo.
 
+## Nota sobre el proxy de Clerk (importante para quien continúe)
+
+> ⚠️ El plan original decía excluir `api/recordings` del matcher de
+> `proxy.ts` (para no truncar subidas grandes). **No aplica** con subida
+> directa navegador→R2: esas rutas solo mandan JSON chico, nunca los bytes
+> del audio. Excluirlas rompe `auth()` de Clerk ("Clerk: auth() was called
+> but Clerk can't detect usage of clerkMiddleware()") — visto en real. El
+> matcher solo excluye `api/webhooks` y `api/cron` (sin sesión de Clerk,
+> usan su propio secreto).
+
 ## Roadmap pendiente
 
-1. **Fase 2** — Grabadora de audio → R2 → transcripción (Deepgram).
-2. **Fase 3** — IA: generar el expediente (formato de consulta) con Gemini.
-3. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
-4. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
-5. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
+1. **Fase 3** — IA: generar el expediente (formato de consulta) con Gemini,
+   a partir del transcript diarizado ya disponible.
+2. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
+3. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
+4. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
    Gemini en nivel de pago, Deepgram sin retención — **antes de tocar datos reales**.
