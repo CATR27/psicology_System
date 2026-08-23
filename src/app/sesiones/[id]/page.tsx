@@ -37,6 +37,12 @@ export default async function SesionDetallePage({
   } else if (latestNote.estado === "BORRADOR") {
     noteSection = (
       <div className="space-y-4">
+        {latestNote.generadaPorIa && (
+          <p className="text-sm rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Generado por IA a partir de la transcripción. Revisá y editá antes
+            de firmar — la IA no diagnostica ni sustituye tu criterio clínico.
+          </p>
+        )}
         <FormatoSesionEditor
           sessionId={id}
           noteId={latestNote.id}

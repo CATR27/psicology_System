@@ -84,6 +84,27 @@ export async function createNote(
   return note;
 }
 
+export async function createAiGeneratedNote(
+  sessionId: string,
+  contenido: FormatoSesion,
+) {
+  const existing = await prisma.clinicalNote.findFirst({
+    where: { sessionId },
+    select: { id: true },
+  });
+  if (existing) return null; // ya hay una nota (manual o previa) — no la pisamos
+
+  return prisma.clinicalNote.create({
+    data: {
+      sessionId,
+      version: 1,
+      estado: "BORRADOR",
+      contenidoJson: asJson(contenido),
+      generadaPorIa: true,
+    },
+  });
+}
+
 export async function updateDraft(noteId: string, contenido: FormatoSesion) {
   const ctx = await requireContext();
   const note = await prisma.clinicalNote.findFirst({

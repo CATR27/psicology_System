@@ -11,10 +11,12 @@ import {
   presignGetObject,
 } from "@/lib/r2";
 import { startTranscription } from "@/lib/deepgram";
+import { generateFormatoSesion } from "@/lib/ai/gemini";
 
 import { requireContext } from "./context";
 import { audit } from "./audit";
 import { hasActiveConsent } from "./consents";
+import { createAiGeneratedNote } from "./notes";
 
 type Hablante = "PSICOLOGO" | "PACIENTE";
 
@@ -182,15 +184,22 @@ export async function saveTranscript(recordingId: string, dgResult: unknown) {
     },
   });
 
+  const transcriptLines: string[] = [];
   if (utterances.length > 0) {
     await prisma.transcriptSegment.createMany({
-      data: utterances.map((u) => ({
-        transcriptId: transcript.id,
-        hablante: hablanteFor(u.speaker ?? u.words?.[0]?.speaker),
-        msInicio: Math.round(u.start * 1000),
-        msFin: Math.round(u.end * 1000),
-        texto: u.transcript,
-      })),
+      data: utterances.map((u) => {
+        const hablante = hablanteFor(u.speaker ?? u.words?.[0]?.speaker);
+        transcriptLines.push(
+          `${hablante === "PSICOLOGO" ? "Psicólogo" : "Paciente"}: ${u.transcript}`,
+        );
+        return {
+          transcriptId: transcript.id,
+          hablante,
+          msInicio: Math.round(u.start * 1000),
+          msFin: Math.round(u.end * 1000),
+          texto: u.transcript,
+        };
+      }),
     });
   }
 
@@ -198,6 +207,20 @@ export async function saveTranscript(recordingId: string, dgResult: unknown) {
     where: { id: recording.id },
     data: { estado: "TRANSCRITO" },
   });
+
+  if (transcriptLines.length > 0) {
+    try {
+      const contenido = await generateFormatoSesion(transcriptLines.join("\n"));
+      await createAiGeneratedNote(recording.sessionId, contenido);
+    } catch (e) {
+      // No tumbamos el guardado del transcript por un hiccup de Gemini.
+      // El transcript queda igual; el psicólogo puede llenar la nota a mano.
+      console.error(
+        "Error generando nota con IA",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
 }
 
 export async function listSessionRecordings(sessionId: string) {

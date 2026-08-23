@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { getSessionRecordingsAction } from "@/app/actions/recordings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,7 @@ export function RecordingSection({
   hasConsent: boolean;
   initialRecordings: Recording[];
 }) {
+  const router = useRouter();
   const [recordings, setRecordings] = useState(initialRecordings);
   const [polling, setPolling] = useState(
     initialRecordings.some((r) => ACTIVE_ESTADOS.has(r.estado)),
@@ -50,12 +52,14 @@ export function RecordingSection({
     const id = setInterval(async () => {
       const fresh = await getSessionRecordingsAction(sessionId);
       setRecordings(fresh);
-      if (!fresh.some((r) => ACTIVE_ESTADOS.has(r.estado))) {
-        setPolling(false);
-      }
+      const stillActive = fresh.some((r) => ACTIVE_ESTADOS.has(r.estado));
+      // router.refresh() también recoge la nota que la IA pudo haber
+      // generado al terminar de transcribir (vive fuera de este componente).
+      router.refresh();
+      if (!stillActive) setPolling(false);
     }, POLL_MS);
     return () => clearInterval(id);
-  }, [polling, sessionId]);
+  }, [polling, sessionId, router]);
 
   return (
     <>
