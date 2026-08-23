@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/dal/sessions";
 import { listNoteVersions } from "@/lib/dal/notes";
 import { hasActiveConsent } from "@/lib/dal/consents";
+import { listSessionRecordings } from "@/lib/dal/recordings";
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { SignNoteButton } from "@/components/sign-note-button";
 import { LeaveSessionLink } from "@/components/leave-session-link";
 import { DeleteSessionButton } from "@/components/delete-session-button";
 import { AudioRecorder } from "@/components/recorder/audio-recorder";
+import { TranscriptViewer } from "@/components/recorder/transcript-viewer";
 
 export default async function SesionDetallePage({
   params,
@@ -26,6 +28,7 @@ export default async function SesionDetallePage({
   const session = await getSession(id);
   const versions = await listNoteVersions(id);
   const consentida = await hasActiveConsent(session.patient.id, "GRABACION");
+  const recordings = await listSessionRecordings(id);
 
   const latestNote = versions[0] ?? null;
 
@@ -106,6 +109,17 @@ export default async function SesionDetallePage({
           <AudioRecorder sessionId={id} hasConsent={consentida} />
         </CardContent>
       </Card>
+
+      {recordings.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Transcripción</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TranscriptViewer sessionId={id} recordings={recordings} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

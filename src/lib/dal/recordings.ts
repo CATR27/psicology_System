@@ -200,6 +200,44 @@ export async function saveTranscript(recordingId: string, dgResult: unknown) {
   });
 }
 
+export async function listSessionRecordings(sessionId: string) {
+  const ctx = await requireContext();
+  await getOwnedSession(ctx, sessionId);
+
+  return prisma.recording.findMany({
+    where: { sessionId },
+    orderBy: { creadaEn: "asc" },
+    include: {
+      transcripts: {
+        orderBy: { creadaEn: "desc" },
+        take: 1,
+        include: { segments: { orderBy: { msInicio: "asc" } } },
+      },
+    },
+  });
+}
+
+export async function reassignSegmentSpeaker(
+  segmentId: string,
+  hablante: Hablante,
+) {
+  const ctx = await requireContext();
+  const segment = await prisma.transcriptSegment.findFirst({
+    where: {
+      id: segmentId,
+      transcript: { recording: { session: sessionScope(ctx) } },
+    },
+    select: { id: true },
+  });
+  if (!segment) notFound();
+
+  await prisma.transcriptSegment.update({
+    where: { id: segment.id },
+    data: { hablante },
+  });
+  await audit(ctx, "transcriptSegment.reassign", segment.id);
+}
+
 export async function abortRecording(recordingId: string) {
   const ctx = await requireContext();
   const recording = await getOwnedRecording(ctx, recordingId);
