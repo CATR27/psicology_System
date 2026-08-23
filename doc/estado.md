@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. **Corregir una fuente** (edición inline) dispara una revisión parcial con Gemini — solo actualiza los campos que de verdad se ven afectados por esa corrección, deja el resto del borrador intacto (no regenera todo). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. **Evolución del paciente** (`/pacientes/[id]/evolucion`): timeline cronológico por sesión con clima afectivo, temas y señales de riesgo — ver nota abajo. Falta: historia clínica (descartado — se decidió mantenerla 100% manual). |
+| Fase 3 — IA | ✅ Terminada | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. **Corregir una fuente** (edición inline) dispara una revisión parcial con Gemini — solo actualiza los campos que de verdad se ven afectados por esa corrección, deja el resto del borrador intacto (no regenera todo). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. **Evolución del paciente** (`/pacientes/[id]/evolucion`): timeline cronológico por sesión con clima afectivo, temas y señales de riesgo. **Costo real registrado** (`AiAnalysis.tokensIn/tokensOut/costoUsd`) en cada generación/revisión — ver nota abajo. Descartado a propósito: historia clínica con IA (se decidió mantenerla 100% manual). |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -161,6 +161,23 @@
 > timestamp es frágil; si hace falta más adelante, guardar `segmentId` en
 > cada fuente al generar sería el camino.
 
+## Nota sobre costo real de IA (AiAnalysis)
+
+> El modelo `AiAnalysis` existía en el schema desde Fase 0 pero nunca se
+> escribía — `interaction.usage` (que la API de Gemini sí devuelve) se
+> descartaba. Ahora `generateFormatoSesion` y `reviseFormatoSesion`
+> (`src/lib/ai/gemini.ts`) devuelven también `usage: { modelo, tokensIn,
+> tokensOut }`, y la capa DAL (`recordAiAnalysis` en
+> `src/lib/dal/recordings.ts`, la única que puede tocar `prisma`) crea una
+> fila en `AiAnalysis` por cada llamada — tanto al generar el borrador
+> inicial como al revisar por una corrección de fuente.
+>
+> `costoUsd` se calcula con una tabla de precios por modelo
+> (`PRECIOS_USD_POR_1M` en `gemini.ts`, hoy cubre `gemini-3.1-flash-lite`,
+> `gemini-3.7-flash`, `gemini-2.5-flash-lite`) — si `GEMINI_MODEL` cambia a
+> un modelo fuera de esa tabla, `costoUsd` queda `null` (tokensIn/tokensOut
+> sí se guardan igual) hasta que se agregue el precio nuevo a mano.
+
 ## Nota sobre "Evolución del paciente"
 
 > Timeline cronológico por sesión en `/pacientes/[id]/evolucion` (entrada
@@ -260,16 +277,15 @@
 
 ## Roadmap pendiente
 
-1. **Fase 3 restante** — registrar costo real por sesión (`AiAnalysis`).
-2. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
-3. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
-4. **Rol Recepción** — darle lógica propia (ver agenda/citas de toda la org
+1. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
+2. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
+3. **Rol Recepción** — darle lógica propia (ver agenda/citas de toda la org
    sin acceso a notas clínicas); hoy queda filtrado igual que Psicólogo, ver
    nota de organizaciones e invitaciones arriba.
-5. **Clerk Production** — crear la instancia de Production (no existe
+4. **Clerk Production** — crear la instancia de Production (no existe
    todavía) y repetir ahí los 3 ajustes ya hechos en Development
    (Membership required, Create-org-automático OFF, Access mode
    Invite-only, rol `org:recepcion`) antes de invitar gente real.
-6. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
+5. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
    Gemini en nivel de pago (✅ ya activado), Deepgram sin retención —
    **antes de tocar datos reales**.
