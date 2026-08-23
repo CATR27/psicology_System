@@ -12,11 +12,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export async function sendMail(to: string, subject: string, html: string) {
+export async function sendMail(
+  to: string,
+  subject: string,
+  html: string,
+  options?: { text?: string; urgent?: boolean; fromName?: string },
+) {
+  const fromName = options?.fromName ?? "Sistema de Citas";
   await transporter.sendMail({
-    from: process.env.SMTP_USER,
+    from: `"${fromName}" <${process.env.SMTP_USER}>`,
     to,
     subject,
     html,
+    text: options?.text,
+    priority: options?.urgent ? "high" : undefined,
+    headers: options?.urgent
+      ? {
+          "X-Priority": "1",
+          "X-MSMail-Priority": "High",
+          Importance: "high",
+        }
+      : undefined,
   });
 }
