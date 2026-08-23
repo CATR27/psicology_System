@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: comparación de evolución entre sesiones, historia clínica (descartado — se decidió mantenerla 100% manual). |
+| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. **Corregir una fuente** (edición inline) dispara una revisión parcial con Gemini — solo actualiza los campos que de verdad se ven afectados por esa corrección, deja el resto del borrador intacto (no regenera todo). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: comparación de evolución entre sesiones, historia clínica (descartado — se decidió mantenerla 100% manual). |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -138,6 +138,28 @@
 > (`"[02:08]"`), rompiendo el parseo en silencio — se limpia con regex en
 > dos capas (server al recibir la respuesta, cliente al parsear) y el
 > prompt pide explícitamente el formato sin corchetes.
+
+## Nota sobre corrección puntual de una fuente
+
+> Cada fuente tiene un botón "corregir" (edición inline). El texto corregido
+> se aplica de una al form — es determinístico, el psicólogo está afirmando
+> qué se dijo de verdad, no depende de que la IA responda bien. Aparte, se
+> le pide a Gemini una segunda opinión con `reviseFormatoSesion` (nuevo en
+> `src/lib/ai/gemini.ts`): schema con **nada obligatorio** (`required: []`),
+> le mandamos el fragmento antes/después + el contenido actual de los 6
+> campos, y devuelve **solo** las claves que de verdad cambian (por
+> presencia de clave, no por truthiness — así se distingue "no cambió,
+> omitido" de "cambió y ahora está vacío"). El cliente hace `setValue` solo
+> en esas claves — el resto del borrador queda intacto, no es una
+> regeneración completa. Probado con Gemini real antes de conectar la UI:
+> una corrección con impacto real devolvió solo la clave afectada; una
+> corrección cosmética devolvió `{}`.
+>
+> **Fuera de alcance a propósito**: no se corrige `TranscriptSegment.texto`
+> en BD — el transcript maestro queda igual, solo se corrige la nota
+> derivada de él. Emparejar una fuente con su segmento exacto por string de
+> timestamp es frágil; si hace falta más adelante, guardar `segmentId` en
+> cada fuente al generar sería el camino.
 
 ## Roadmap pendiente
 
