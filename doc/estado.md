@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: citar timestamps por afirmación, comparación de evolución entre sesiones, historia clínica (descartado — se decidió mantenerla 100% manual). |
+| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: comparación de evolución entre sesiones, historia clínica (descartado — se decidió mantenerla 100% manual). |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -84,9 +84,10 @@
 > confiable (fuera del ciclo de vida del webhook) y le da control al
 > psicólogo sobre cuándo generar.
 >
-> **Simplificación consciente vs. el plan**: el plan pedía citar el
-> timestamp de cada afirmación — eso sigue pendiente. El panel dedicado de
-> señales de riesgo **ya se hizo** (ver nota abajo).
+> **Simplificación consciente vs. el plan**: ambas cosas que faltaban ya se
+> hicieron — panel dedicado de señales de riesgo y citas a timestamps (ver
+> notas abajo). Lo único que queda de la lista original del plan es la
+> comparación de evolución entre sesiones.
 
 ## Nota sobre indicadores "generado por IA" (decisión explícita del usuario)
 
@@ -120,10 +121,28 @@
 > aparte al generar; instrucción explícita de no inventar una señal si no
 > hay evidencia real en la transcripción.
 
+## Nota sobre el reproductor de audio y las fuentes citadas
+
+> No existía forma de escuchar la grabación en la app (solo leer texto).
+> Se agregó `getPlaybackUrls` (URL prefirmada de R2, generada una sola vez
+> por carga de página — **no** en cada tick del polling, o el `<audio>` se
+> reiniciaría solo). `src/lib/audio-seek.ts` expone un mecanismo simple
+> por `id` de elemento DOM (`session-audio`) para saltar a un timestamp
+> desde cualquier componente sin context ni prop-drilling — lo usan tanto
+> las burbujas del transcript como las "fuentes" del formato de sesión.
+>
+> Gemini ahora recibe cada línea con su timestamp (`[mm:ss] hablante:
+> texto`) y devuelve `fuentes: {texto, timestamp}[]` citando de dónde
+> sacó cada afirmación clave. **Bug real encontrado en la prueba antes de
+> desplegar**: el modelo devolvía el timestamp con corchetes
+> (`"[02:08]"`), rompiendo el parseo en silencio — se limpia con regex en
+> dos capas (server al recibir la respuesta, cliente al parsear) y el
+> prompt pide explícitamente el formato sin corchetes.
+
 ## Roadmap pendiente
 
-1. **Fase 3 restante** — citar timestamps por afirmación, comparación de
-   evolución entre sesiones (`EmotionMetric`), registrar costo real
+1. **Fase 3 restante** — comparación de evolución entre sesiones
+   (`EmotionMetric`), registrar costo real
    (`AiAnalysis`).
 2. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
 3. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
