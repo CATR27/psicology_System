@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { reassignSegmentSpeaker, listSessionRecordings } from "@/lib/dal/recordings";
+import {
+  reassignSegmentSpeaker,
+  listSessionRecordings,
+  generateNoteFromTranscript,
+} from "@/lib/dal/recordings";
+import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 
 const reassignSchema = z.object({
   segmentId: z.string().min(1),
@@ -13,6 +18,20 @@ const reassignSchema = z.object({
 
 export async function getSessionRecordingsAction(sessionId: string) {
   return listSessionRecordings(sessionId);
+}
+
+export async function generateNoteFromTranscriptAction(
+  sessionId: string,
+): Promise<{ ok: true; contenido: FormatoSesion } | { ok: false; error: string }> {
+  try {
+    const contenido = await generateNoteFromTranscript(sessionId);
+    return { ok: true, contenido };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudo generar con IA",
+    };
+  }
 }
 
 export async function reassignSegmentSpeakerAction(input: {

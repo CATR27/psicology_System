@@ -30,10 +30,13 @@ export default async function SesionDetallePage({
   const recordings = await listSessionRecordings(id);
 
   const latestNote = versions[0] ?? null;
+  const hasTranscript = recordings.some((r) => r.estado === "TRANSCRITO");
 
   let noteSection;
   if (!latestNote) {
-    noteSection = <FormatoSesionEditor sessionId={id} />;
+    noteSection = (
+      <FormatoSesionEditor sessionId={id} hasTranscript={hasTranscript} />
+    );
   } else if (latestNote.estado === "BORRADOR") {
     noteSection = (
       <div className="space-y-4">
@@ -47,6 +50,7 @@ export default async function SesionDetallePage({
           sessionId={id}
           noteId={latestNote.id}
           initial={latestNote.contenidoJson as unknown as FormatoSesion}
+          hasTranscript={hasTranscript}
         />
         <SignNoteButton noteId={latestNote.id} sessionId={id} />
       </div>
@@ -56,6 +60,7 @@ export default async function SesionDetallePage({
       <FormatoSesionEditor
         sessionId={id}
         initial={latestNote.contenidoJson as unknown as FormatoSesion}
+        hasTranscript={hasTranscript}
       />
     );
   } else {

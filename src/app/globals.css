@@ -128,3 +128,64 @@
     @apply font-sans;
   }
 }
+
+@property --ai-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.ai-glow-btn {
+  position: relative;
+  isolation: isolate;
+  background: #0a0a0a;
+  color: #fff;
+  border: none;
+}
+
+.ai-glow-btn::before,
+.ai-glow-btn::after {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--ai-angle),
+    #0a84ff,
+    #5ac8fa,
+    #bf5af2,
+    #ff375f,
+    #ff9f0a,
+    #5ac8fa,
+    #0a84ff
+  );
+  animation: ai-rotate 3s linear infinite;
+}
+
+.ai-glow-btn::before {
+  z-index: -1;
+  padding: 1.5px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.ai-glow-btn::after {
+  z-index: -2;
+  inset: -6px;
+  filter: blur(10px);
+  opacity: 0.55;
+}
+
+@keyframes ai-rotate {
+  to {
+    --ai-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-glow-btn::before,
+  .ai-glow-btn::after {
+    animation: none;
+  }
+}

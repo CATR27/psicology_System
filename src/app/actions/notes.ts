@@ -15,6 +15,7 @@ export type NoteActionResult =
 export async function createNoteAction(
   sessionId: string,
   contenido: FormatoSesion,
+  generadaPorIa = false,
 ): Promise<NoteActionResult> {
   const parsed = formatoSesionSchema.safeParse(contenido);
   if (!parsed.success) {
@@ -24,7 +25,7 @@ export async function createNoteAction(
     };
   }
   try {
-    const note = await createNote(sessionId, parsed.data);
+    const note = await createNote(sessionId, parsed.data, generadaPorIa);
     revalidatePath(`/sesiones/${sessionId}`);
     return { ok: true, id: note.id };
   } catch (e) {
