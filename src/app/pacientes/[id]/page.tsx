@@ -99,6 +99,23 @@ export default async function PacienteDetallePage({
             </Link>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Evolución</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Compara clima afectivo, temas y señales de riesgo a lo largo
+              de las sesiones.
+            </p>
+            <Link href={`/pacientes/${id}/evolucion`}>
+              <Button size="sm" variant="outline" className="w-full">
+                Ver evolución
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

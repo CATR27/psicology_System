@@ -46,6 +46,28 @@ export async function getLatestNote(sessionId: string) {
   return note;
 }
 
+export async function listPatientEvolution(patientId: string) {
+  const ctx = await requireContext();
+  const sessions = await prisma.session.findMany({
+    where: {
+      patientId,
+      patient: {
+        orgId: ctx.orgId,
+        ...(ctx.rol === "ADMIN" ? {} : { psicologoId: ctx.userId }),
+      },
+    },
+    orderBy: { numeroSesion: "asc" },
+    include: {
+      clinicalNotes: {
+        orderBy: { version: "desc" },
+        take: 1,
+        select: { contenidoJson: true, estado: true },
+      },
+    },
+  });
+  return sessions;
+}
+
 export async function createNote(
   sessionId: string,
   contenido: FormatoSesion,
