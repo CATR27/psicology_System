@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { JesiaMemory } from "@/components/recorder/jesia-memory";
 
 const CLIMA_CHIPS = [
   "Ansioso",
@@ -156,12 +157,7 @@ export function FormatoSesionEditor({
             </svg>
             {generating ? "Generando…" : "Generar con IA"}
           </button>
-          {aiFilled && !generating && (
-            <p className="text-xs text-muted-foreground">
-              Contenido generado por IA a partir de la transcripción — revisá
-              antes de guardar.
-            </p>
-          )}
+          <JesiaMemory />
         </div>
       )}
 

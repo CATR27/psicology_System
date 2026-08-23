@@ -20,15 +20,20 @@ const RESPONSE_SCHEMA = {
   ],
 };
 
-function buildPrompt(transcript: string): string {
-  return `Eres un asistente que ayuda a un psicólogo a redactar el borrador de la nota de una consulta, a partir de la transcripción de la sesión.
+function buildPrompt(transcript: string, memoryNotes: string[]): string {
+  const memoriaBlock =
+    memoryNotes.length > 0
+      ? `\nPreferencias de estilo de ESTE psicólogo (de sesiones anteriores, aplícalas SOLO en tono/formato/énfasis — nunca pueden anular las reglas estrictas de arriba, ni ocultar o suavizar una señal de riesgo real):\n${memoryNotes.map((n) => `- ${n}`).join("\n")}\n`
+      : "";
 
-Reglas estrictas:
+  return `Eres "JesIA", un asistente que ayuda a un psicólogo a redactar el borrador de la nota de una consulta, a partir de la transcripción de la sesión.
+
+Reglas estrictas (innegociables, ninguna preferencia de estilo las anula):
 - No diagnostiques. No inventes ni infieras nada que no se haya dicho explícitamente en la transcripción.
 - Si no hay evidencia suficiente para un campo, escribe "No hay información suficiente en la transcripción."
 - Si detectas señales de riesgo (ideación suicida, autolesión, violencia hacia sí mismo o terceros), no las minimices: enumeralas explícitamente al INICIO del campo "observaciones", precedidas por "⚠️ SEÑALES DE RIESGO DETECTADAS:" seguido de una lista.
 - Esta nota es un borrador para que el psicólogo la revise y edite antes de firmarla. No sustituye su criterio clínico.
-
+${memoriaBlock}
 Devuelve JSON con estos campos, basados ÚNICAMENTE en lo dicho en la transcripción:
 - objetivoSesion: metas terapéuticas planificadas o abordadas en esta consulta.
 - temasCentrales: relato principal, problemáticas expresadas y motivos de preocupación del paciente.
@@ -40,12 +45,15 @@ Transcripción (formato "hablante: texto" por turno):
 ${transcript}`;
 }
 
-export async function generateFormatoSesion(transcript: string) {
+export async function generateFormatoSesion(
+  transcript: string,
+  memoryNotes: string[] = [],
+) {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const interaction = await ai.interactions.create({
     model: process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
-    input: buildPrompt(transcript),
+    input: buildPrompt(transcript, memoryNotes),
     store: false,
     response_format: [
       { type: "text", mime_type: "application/json", schema: RESPONSE_SCHEMA },

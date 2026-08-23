@@ -16,6 +16,7 @@ import { generateFormatoSesion } from "@/lib/ai/gemini";
 import { requireContext } from "./context";
 import { audit } from "./audit";
 import { hasActiveConsent } from "./consents";
+import { listAiMemoryTextsFor } from "./ai-memory";
 
 type Hablante = "PSICOLOGO" | "PACIENTE";
 
@@ -203,7 +204,11 @@ export async function saveTranscript(recordingId: string, dgResult: unknown) {
 
 export async function generateNoteFromTranscript(sessionId: string) {
   const ctx = await requireContext();
-  await getOwnedSession(ctx, sessionId);
+  const session = await prisma.session.findFirst({
+    where: { id: sessionId, ...sessionScope(ctx) },
+    select: { id: true, psicologoId: true },
+  });
+  if (!session) notFound();
 
   const recordings = await prisma.recording.findMany({
     where: { sessionId, estado: "TRANSCRITO" },
@@ -225,7 +230,8 @@ export async function generateNoteFromTranscript(sessionId: string) {
   const lines = segments.map(
     (s) => `${s.hablante === "PSICOLOGO" ? "Psicólogo" : "Paciente"}: ${s.texto}`,
   );
-  const contenido = await generateFormatoSesion(lines.join("\n"));
+  const memoryNotes = await listAiMemoryTextsFor(session.psicologoId);
+  const contenido = await generateFormatoSesion(lines.join("\n"), memoryNotes);
   await audit(ctx, "note.generateAi", sessionId);
   return contenido;
 }

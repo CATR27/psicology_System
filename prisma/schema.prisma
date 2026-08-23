@@ -104,8 +104,20 @@ model User {
   notasEditadas      ClinicalNote[]  @relation("NoteEditor")
   notasFirmadas      ClinicalNote[]  @relation("NoteSigner")
   auditLogs          AuditLog[]
+  aiMemoryNotes      AiMemoryNote[]
 
   @@index([orgId])
+}
+
+model AiMemoryNote {
+  id          String   @id @default(cuid())
+  psicologoId String
+  texto       String
+  creadaEn    DateTime @default(now())
+
+  psicologo   User     @relation(fields: [psicologoId], references: [id], onDelete: Cascade)
+
+  @@index([psicologoId])
 }
 
 model Patient {

@@ -40,12 +40,6 @@ export default async function SesionDetallePage({
   } else if (latestNote.estado === "BORRADOR") {
     noteSection = (
       <div className="space-y-4">
-        {latestNote.generadaPorIa && (
-          <p className="text-sm rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            Generado por IA a partir de la transcripción. Revisá y editá antes
-            de firmar — la IA no diagnostica ni sustituye tu criterio clínico.
-          </p>
-        )}
         <FormatoSesionEditor
           sessionId={id}
           noteId={latestNote.id}
@@ -136,10 +130,7 @@ export default async function SesionDetallePage({
                   key={v.id}
                   className="flex items-center justify-between border-b pb-2 last:border-0"
                 >
-                  <span className="text-sm">
-                    Versión {v.version}
-                    {v.generadaPorIa ? " · generada por IA" : ""}
-                  </span>
+                  <span className="text-sm">Versión {v.version}</span>
                   <div className="flex items-center gap-2">
                     {v.firmadaEn && (
                       <span className="text-xs text-muted-foreground">
