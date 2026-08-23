@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Memoria **"JesIA"** por psicólogo (panel en el editor): notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: banner dedicado de señales de riesgo (por ahora van dentro de "observaciones"), citar timestamps por afirmación, comparación de evolución entre sesiones. |
+| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: citar timestamps por afirmación, comparación de evolución entre sesiones, historia clínica (descartado — se decidió mantenerla 100% manual). |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -85,10 +85,8 @@
 > psicólogo sobre cuándo generar.
 >
 > **Simplificación consciente vs. el plan**: el plan pedía citar el
-> timestamp de cada afirmación y un panel dedicado y siempre visible para
-> señales de riesgo. Por ahora las señales de riesgo van como texto al
-> inicio de "observaciones" (visible, pero no un componente propio) y no
-> hay citas a timestamps. Pendiente si se necesita más adelante.
+> timestamp de cada afirmación — eso sigue pendiente. El panel dedicado de
+> señales de riesgo **ya se hizo** (ver nota abajo).
 
 ## Nota sobre indicadores "generado por IA" (decisión explícita del usuario)
 
@@ -112,10 +110,21 @@
 > señal de riesgo real. Aisladas por `psicologoId`: un psicólogo nunca ve
 > ni usa las notas de otro, aunque compartan organización.
 
+## Nota sobre el banner de señales de riesgo
+
+> `senalesRiesgo: string[]` es ahora su propio campo en el schema del
+> formato de sesión (antes iba mezclado como texto dentro de
+> "observaciones"). Visible en 3 lugares: caja roja editable en el editor,
+> banner rojo en la vista firmada (permanece después de firmar, no solo
+> durante edición), y primero en el PDF exportado. Gemini lo llena
+> aparte al generar; instrucción explícita de no inventar una señal si no
+> hay evidencia real en la transcripción.
+
 ## Roadmap pendiente
 
-1. **Fase 3 restante** — banner dedicado de señales de riesgo, citas a
-   timestamps, comparación de evolución entre sesiones (`EmotionMetric`).
+1. **Fase 3 restante** — citar timestamps por afirmación, comparación de
+   evolución entre sesiones (`EmotionMetric`), registrar costo real
+   (`AiAnalysis`).
 2. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
 3. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
 4. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
