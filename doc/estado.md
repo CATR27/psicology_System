@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Falta: banner dedicado de señales de riesgo (por ahora van dentro de "observaciones"), citar timestamps por afirmación, comparación de evolución entre sesiones. |
+| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Memoria **"JesIA"** por psicólogo (panel en el editor): notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: banner dedicado de señales de riesgo (por ahora van dentro de "observaciones"), citar timestamps por afirmación, comparación de evolución entre sesiones. |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -89,6 +89,28 @@
 > señales de riesgo. Por ahora las señales de riesgo van como texto al
 > inicio de "observaciones" (visible, pero no un componente propio) y no
 > hay citas a timestamps. Pendiente si se necesita más adelante.
+
+## Nota sobre indicadores "generado por IA" (decisión explícita del usuario)
+
+> ⚠️ El plan pide que **la UI siempre diga** cuándo algo lo generó la IA
+> (requisito de transparencia, relevante para NOM-004). Se avisó esto
+> explícitamente y el usuario pidió quitar **todos** los indicadores
+> visibles igual (banner, hint, etiqueta en historial). Se respetó la
+> decisión, pero el campo `generadaPorIa` **se sigue guardando en BD**
+> como rastro interno — no se mostró en UI, no se borró el dato. Si
+> hace falta reactivar la transparencia visual más adelante, el dato
+> ya está ahí.
+
+## Nota sobre "JesIA" (memoria por psicólogo)
+
+> Modelo `AiMemoryNote` (`psicologoId`, `texto`) — notas libres que cada
+> psicólogo agrega ("sé más breve", "tono más cálido", etc.). Al generar
+> con IA, se inyectan al prompt de Gemini como "preferencias de estilo",
+> con una línea explícita en el prompt de que **nunca** pueden anular
+> las reglas de seguridad (no diagnosticar, señales de riesgo siempre
+> visibles) — mitiga que una nota de estilo mal escrita silencie una
+> señal de riesgo real. Aisladas por `psicologoId`: un psicólogo nunca ve
+> ni usa las notas de otro, aunque compartan organización.
 
 ## Roadmap pendiente
 
