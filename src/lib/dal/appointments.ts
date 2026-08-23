@@ -10,16 +10,12 @@ import { audit } from "./audit";
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-type ReminderTipo =
-  | "PSICOLOGO_DIA_ANTES"
-  | "PSICOLOGO_HORA_ANTES"
-  | "PACIENTE_DIA_ANTES";
+type ReminderTipo = "PSICOLOGO_DIA_ANTES" | "PSICOLOGO_HORA_ANTES";
 
 export type AppointmentCreateInput = {
   patientId: string;
   inicio: Date;
   fin: Date;
-  recordarPaciente: boolean;
 };
 
 function ownership(ctx: Awaited<ReturnType<typeof requireContext>>) {
@@ -29,10 +25,8 @@ function ownership(ctx: Awaited<ReturnType<typeof requireContext>>) {
 function buildReminderRows(params: {
   inicio: Date;
   psicologoEmail: string | null | undefined;
-  patientEmail: string | null | undefined;
-  recordarPaciente: boolean;
 }): { tipo: ReminderTipo; programadoPara: Date; email: string }[] {
-  const { inicio, psicologoEmail, patientEmail, recordarPaciente } = params;
+  const { inicio, psicologoEmail } = params;
   const reminders: { tipo: ReminderTipo; programadoPara: Date; email: string }[] = [];
   if (psicologoEmail) {
     reminders.push(
@@ -48,13 +42,6 @@ function buildReminderRows(params: {
       },
     );
   }
-  if (recordarPaciente && patientEmail) {
-    reminders.push({
-      tipo: "PACIENTE_DIA_ANTES",
-      programadoPara: new Date(inicio.getTime() - DAY),
-      email: patientEmail,
-    });
-  }
   return reminders;
 }
 
@@ -66,7 +53,7 @@ export async function createAppointment(input: AppointmentCreateInput) {
       orgId: ctx.orgId,
       ...ownership(ctx),
     },
-    select: { id: true, email: true },
+    select: { id: true },
   });
   if (!patient) notFound();
 
@@ -88,8 +75,6 @@ export async function createAppointment(input: AppointmentCreateInput) {
   const reminders = buildReminderRows({
     inicio: input.inicio,
     psicologoEmail: psicologo?.email,
-    patientEmail: patient.email,
-    recordarPaciente: input.recordarPaciente,
   });
 
   if (reminders.length > 0) {
@@ -120,14 +105,9 @@ export async function rescheduleAppointment(
       ...ownership(ctx),
       estado: { not: "CANCELADA" },
     },
-    include: { patient: { select: { email: true } } },
+    select: { id: true, psicologoId: true },
   });
   if (!appt) notFound();
-
-  const recordarPaciente = await prisma.reminder.findFirst({
-    where: { appointmentId, tipo: "PACIENTE_DIA_ANTES" },
-    select: { id: true },
-  });
 
   const psicologo = await prisma.user.findUnique({
     where: { id: appt.psicologoId },
@@ -145,8 +125,6 @@ export async function rescheduleAppointment(
   const reminders = buildReminderRows({
     inicio,
     psicologoEmail: psicologo?.email,
-    patientEmail: appt.patient.email,
-    recordarPaciente: !!recordarPaciente,
   });
 
   if (reminders.length > 0) {

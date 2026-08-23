@@ -399,7 +399,6 @@ function AppointmentForm({
     const fecha = String(form.get("fecha") ?? "");
     const hora = String(form.get("hora") ?? "");
     const duracion = Number(form.get("duracion") ?? 50);
-    const recordarPaciente = form.get("recordarPaciente") === "on";
 
     if (!patientId || !fecha || !hora) {
       setError("Selecciona paciente, fecha y hora.");
@@ -414,7 +413,6 @@ function AppointmentForm({
         patientId,
         inicio: inicioLocal.toISOString(),
         fin: finLocal.toISOString(),
-        recordarPaciente,
       });
       if (result.ok) {
         onClose();
@@ -456,11 +454,6 @@ function AppointmentForm({
         <Label htmlFor="duracion">Duración (minutos)</Label>
         <Input id="duracion" name="duracion" type="number" defaultValue={50} min={5} />
       </div>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="recordarPaciente" className="size-4" />
-        Recordar al paciente por correo (1 día antes)
-      </label>
-
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-2">

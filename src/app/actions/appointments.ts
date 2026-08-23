@@ -13,7 +13,6 @@ const appointmentSchema = z.object({
   patientId: z.string().min(1),
   inicio: z.string().min(1),
   fin: z.string().min(1),
-  recordarPaciente: z.boolean().optional().default(false),
 });
 
 const rescheduleSchema = z.object({
@@ -30,7 +29,6 @@ export async function createAppointmentAction(input: {
   patientId: string;
   inicio: string;
   fin: string;
-  recordarPaciente?: boolean;
 }): Promise<AppointmentActionResult> {
   const parsed = appointmentSchema.safeParse(input);
   if (!parsed.success) {
@@ -44,7 +42,6 @@ export async function createAppointmentAction(input: {
       patientId: parsed.data.patientId,
       inicio: new Date(parsed.data.inicio),
       fin: new Date(parsed.data.fin),
-      recordarPaciente: parsed.data.recordarPaciente,
     });
     revalidatePath("/agenda");
     return { ok: true, id: appt.id };
