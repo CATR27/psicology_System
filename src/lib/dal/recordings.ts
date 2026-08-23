@@ -8,11 +8,15 @@ import {
   presignUploadPart,
   completeMultipartUpload,
   abortMultipartUpload,
+  presignGetObject,
 } from "@/lib/r2";
+import { startTranscription } from "@/lib/deepgram";
 
 import { requireContext } from "./context";
 import { audit } from "./audit";
 import { hasActiveConsent } from "./consents";
+
+type Hablante = "PSICOLOGO" | "PACIENTE";
 
 function sessionScope(ctx: Awaited<ReturnType<typeof requireContext>>) {
   return {
@@ -116,7 +120,84 @@ export async function completeRecording(
   });
 
   await audit(ctx, "recording.complete", recording.id);
+
+  try {
+    const audioUrl = await presignGetObject(recording.r2Key);
+    const callbackUrl = `${process.env.APP_URL}/api/webhooks/deepgram?token=${process.env.WEBHOOK_SECRET}&recordingId=${recording.id}`;
+    await startTranscription({ audioUrl, callbackUrl });
+    await prisma.recording.update({
+      where: { id: recording.id },
+      data: { estado: "TRANSCRIBIENDO" },
+    });
+  } catch (e) {
+    // No tumbamos la respuesta de "subida completa" por un hiccup de Deepgram.
+    // Se queda en SUBIDO; el barredor de reintentos (pendiente) lo recoge.
+    console.error(
+      "Error disparando transcripción",
+      e instanceof Error ? e.message : e,
+    );
+  }
+
   return updated;
+}
+
+export async function saveTranscript(recordingId: string, dgResult: unknown) {
+  const recording = await prisma.recording.findUnique({
+    where: { id: recordingId },
+  });
+  if (!recording) return; // callback de un recordingId desconocido/borrado, ignorar
+
+  const data = dgResult as {
+    results?: {
+      channels?: { alternatives?: { transcript?: string; confidence?: number }[] }[];
+      utterances?: {
+        start: number;
+        end: number;
+        transcript: string;
+        speaker?: number;
+        words?: { speaker?: number }[];
+      }[];
+    };
+  };
+
+  const alt = data.results?.channels?.[0]?.alternatives?.[0];
+  const utterances = data.results?.utterances ?? [];
+
+  const speakerMap = new Map<number, Hablante>();
+  function hablanteFor(speaker: number | undefined): Hablante {
+    const s = speaker ?? 0;
+    if (!speakerMap.has(s)) {
+      speakerMap.set(s, speakerMap.size === 0 ? "PSICOLOGO" : "PACIENTE");
+    }
+    return speakerMap.get(s)!;
+  }
+
+  const transcript = await prisma.transcript.create({
+    data: {
+      recordingId: recording.id,
+      proveedor: "deepgram",
+      idioma: "es",
+      textoCompleto: alt?.transcript ?? "",
+      confianza: alt?.confidence ?? null,
+    },
+  });
+
+  if (utterances.length > 0) {
+    await prisma.transcriptSegment.createMany({
+      data: utterances.map((u) => ({
+        transcriptId: transcript.id,
+        hablante: hablanteFor(u.speaker ?? u.words?.[0]?.speaker),
+        msInicio: Math.round(u.start * 1000),
+        msFin: Math.round(u.end * 1000),
+        texto: u.transcript,
+      })),
+    });
+  }
+
+  await prisma.recording.update({
+    where: { id: recording.id },
+    data: { estado: "TRANSCRITO" },
+  });
 }
 
 export async function abortRecording(recordingId: string) {

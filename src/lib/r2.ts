@@ -7,6 +7,7 @@ import {
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -62,6 +63,10 @@ export async function abortMultipartUpload(key: string, uploadId: string) {
   await s3.send(
     new AbortMultipartUploadCommand({ Bucket, Key: key, UploadId: uploadId }),
   );
+}
+
+export async function presignGetObject(key: string, expiresIn = 3600) {
+  return getSignedUrl(s3, new GetObjectCommand({ Bucket, Key: key }), { expiresIn });
 }
 
 export async function deleteObject(key: string) {
