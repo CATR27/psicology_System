@@ -38,6 +38,21 @@ const POLL_MS = 4000;
 
 type PlaybackUrl = { recordingId: string; url: string; duracionSeg: number | null };
 
+// El WebM que graba MediaRecorder no trae la duración en el header (el
+// navegador no la sabe hasta terminar de grabar) — Chrome entonces
+// reporta Infinity y la UI muestra un contador corriendo sin fin.
+// Forzar un seek al final obliga al navegador a escanear el archivo y
+// recalcular la duración real; luego regresamos a 0.
+function fixInfiniteDuration(audio: HTMLAudioElement) {
+  if (audio.duration !== Infinity && !Number.isNaN(audio.duration)) return;
+  const onTimeUpdate = () => {
+    audio.currentTime = 0;
+    audio.removeEventListener("timeupdate", onTimeUpdate);
+  };
+  audio.addEventListener("timeupdate", onTimeUpdate);
+  audio.currentTime = 1e101;
+}
+
 export function RecordingSection({
   sessionId,
   hasConsent,
@@ -113,9 +128,11 @@ export function RecordingSection({
                 key={p.recordingId}
                 id={i === 0 ? SESSION_AUDIO_ID : undefined}
                 controls
-                preload="none"
+                preload="metadata"
                 src={p.url}
                 className="w-full"
+                onLoadedMetadata={(e) => fixInfiniteDuration(e.currentTarget)}
+                onDurationChange={(e) => fixInfiniteDuration(e.currentTarget)}
               />
             ))}
           </CardContent>
