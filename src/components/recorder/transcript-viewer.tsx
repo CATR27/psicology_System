@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { reassignSegmentSpeakerAction } from "@/app/actions/recordings";
+import { seekSessionAudio } from "@/lib/audio-seek";
 import { cn } from "@/lib/utils";
 
 type Hablante = "PSICOLOGO" | "PACIENTE";
@@ -75,9 +76,14 @@ function SegmentBubble({
           <span className="font-medium">
             {isPsicologo ? "Psicólogo" : "Paciente"}
           </span>
-          <span>
+          <button
+            type="button"
+            onClick={() => seekSessionAudio(segment.msInicio / 1000)}
+            className="underline hover:no-underline"
+            title="Escuchar este momento"
+          >
             {fmtMs(segment.msInicio)}–{fmtMs(segment.msFin)}
-          </span>
+          </button>
           <button
             type="button"
             onClick={toggle}

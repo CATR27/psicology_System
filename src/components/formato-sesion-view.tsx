@@ -1,4 +1,7 @@
+"use client";
+
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
+import { seekSessionAudio, parseTimestamp } from "@/lib/audio-seek";
 
 function Section({ title, body }: { title: string; body: string }) {
   return (
@@ -39,6 +42,31 @@ export function RiskBanner({ senales }: { senales: string[] }) {
   );
 }
 
+function FuentesList({ fuentes }: { fuentes: { texto: string; timestamp: string }[] }) {
+  if (fuentes.length === 0) return null;
+  return (
+    <div className="space-y-1">
+      <h4 className="text-sm font-medium text-muted-foreground">
+        Fuentes (auditar lo que escribió la IA)
+      </h4>
+      <ul className="space-y-1">
+        {fuentes.map((f, i) => (
+          <li key={i} className="text-sm">
+            <button
+              type="button"
+              onClick={() => seekSessionAudio(parseTimestamp(f.timestamp))}
+              className="text-left underline hover:no-underline"
+              title="Escuchar este momento"
+            >
+              {f.texto} — {f.timestamp}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function FormatoSesionView({ data }: { data: FormatoSesion }) {
   return (
     <div className="space-y-4">
@@ -50,6 +78,7 @@ export function FormatoSesionView({ data }: { data: FormatoSesion }) {
       {data.observaciones ? (
         <Section title="Observaciones" body={data.observaciones} />
       ) : null}
+      <FuentesList fuentes={data.fuentes ?? []} />
     </div>
   );
 }

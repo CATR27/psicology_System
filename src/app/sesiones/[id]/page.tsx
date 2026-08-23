@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/dal/sessions";
 import { listNoteVersions } from "@/lib/dal/notes";
 import { hasActiveConsent } from "@/lib/dal/consents";
-import { listSessionRecordings } from "@/lib/dal/recordings";
+import { listSessionRecordings, getPlaybackUrls } from "@/lib/dal/recordings";
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ export default async function SesionDetallePage({
   const versions = await listNoteVersions(id);
   const consentida = await hasActiveConsent(session.patient.id, "GRABACION");
   const recordings = await listSessionRecordings(id);
+  const playbackUrls = await getPlaybackUrls(id);
 
   const latestNote = versions[0] ?? null;
   const hasTranscript = recordings.some((r) => r.estado === "TRANSCRITO");
@@ -109,6 +110,7 @@ export default async function SesionDetallePage({
         sessionId={id}
         hasConsent={consentida}
         initialRecordings={recordings}
+        initialPlaybackUrls={playbackUrls}
       />
 
       <Card>

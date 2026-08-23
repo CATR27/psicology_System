@@ -7,6 +7,7 @@ import {
   reassignSegmentSpeaker,
   listSessionRecordings,
   generateNoteFromTranscript,
+  getPlaybackUrls,
 } from "@/lib/dal/recordings";
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 
@@ -18,6 +19,10 @@ const reassignSchema = z.object({
 
 export async function getSessionRecordingsAction(sessionId: string) {
   return listSessionRecordings(sessionId);
+}
+
+export async function getPlaybackUrlsAction(sessionId: string) {
+  return getPlaybackUrls(sessionId);
 }
 
 export async function generateNoteFromTranscriptAction(

@@ -8,6 +8,7 @@ import { createNoteAction, updateDraftAction } from "@/app/actions/notes";
 import { generateNoteFromTranscriptAction } from "@/app/actions/recordings";
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 import { setSessionDirty } from "@/lib/session-dirty";
+import { seekSessionAudio, parseTimestamp } from "@/lib/audio-seek";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,11 +54,13 @@ export function FormatoSesionEditor({
       climaAfectivo: initial?.climaAfectivo ?? "",
       observaciones: initial?.observaciones ?? "",
       senalesRiesgo: initial?.senalesRiesgo ?? [],
+      fuentes: initial?.fuentes ?? [],
     },
   });
 
   const clima = useWatch({ control, name: "climaAfectivo" });
   const senalesRiesgo = useWatch({ control, name: "senalesRiesgo" }) ?? [];
+  const fuentes = useWatch({ control, name: "fuentes" }) ?? [];
   const allValues = useWatch({ control });
   const [nuevaSenal, setNuevaSenal] = useState("");
 
@@ -68,6 +71,7 @@ export function FormatoSesionEditor({
     climaAfectivo: initial?.climaAfectivo ?? "",
     observaciones: initial?.observaciones ?? "",
     senalesRiesgo: initial?.senalesRiesgo ?? [],
+    fuentes: initial?.fuentes ?? [],
   });
 
   const dirty = JSON.stringify(allValues) !== initialKey;
@@ -116,6 +120,14 @@ export function FormatoSesionEditor({
     );
   }
 
+  function quitarFuente(index: number) {
+    setValue(
+      "fuentes",
+      fuentes.filter((_, i) => i !== index),
+      { shouldDirty: true },
+    );
+  }
+
   function onSubmit(values: FormatoSesion) {
     setError(null);
     startTransition(async () => {
@@ -145,6 +157,7 @@ export function FormatoSesionEditor({
       setValue("climaAfectivo", result.contenido.climaAfectivo, { shouldDirty: true });
       setValue("observaciones", result.contenido.observaciones, { shouldDirty: true });
       setValue("senalesRiesgo", result.contenido.senalesRiesgo, { shouldDirty: true });
+      setValue("fuentes", result.contenido.fuentes, { shouldDirty: true });
       setAiFilled(true);
     });
   }
@@ -296,6 +309,36 @@ export function FormatoSesionEditor({
           {...register("observaciones")}
         />
       </div>
+
+      {fuentes.length > 0 && (
+        <div className="space-y-1.5">
+          <Label>Fuentes (auditar lo que escribió la IA)</Label>
+          <ul className="space-y-1">
+            {fuentes.map((f, i) => (
+              <li
+                key={i}
+                className="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => seekSessionAudio(parseTimestamp(f.timestamp))}
+                  className="text-left underline hover:no-underline"
+                  title="Escuchar este momento"
+                >
+                  {f.texto} — {f.timestamp}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => quitarFuente(i)}
+                  className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  quitar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

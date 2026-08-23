@@ -12,6 +12,7 @@ import {
 } from "@/lib/r2";
 import { startTranscription } from "@/lib/deepgram";
 import { generateFormatoSesion } from "@/lib/ai/gemini";
+import { formatTimestamp } from "@/lib/audio-seek";
 
 import { requireContext } from "./context";
 import { audit } from "./audit";
@@ -227,13 +228,33 @@ export async function generateNoteFromTranscript(sessionId: string) {
     throw new Error("No hay transcripción disponible todavía.");
   }
 
-  const lines = segments.map(
-    (s) => `${s.hablante === "PSICOLOGO" ? "Psicólogo" : "Paciente"}: ${s.texto}`,
-  );
+  const lines = segments.map((s) => {
+    const ts = formatTimestamp(Math.floor(s.msInicio / 1000));
+    return `[${ts}] ${s.hablante === "PSICOLOGO" ? "Psicólogo" : "Paciente"}: ${s.texto}`;
+  });
   const memoryNotes = await listAiMemoryTextsFor(session.psicologoId);
   const contenido = await generateFormatoSesion(lines.join("\n"), memoryNotes);
   await audit(ctx, "note.generateAi", sessionId);
   return contenido;
+}
+
+export async function getPlaybackUrls(sessionId: string) {
+  const ctx = await requireContext();
+  await getOwnedSession(ctx, sessionId);
+
+  const recordings = await prisma.recording.findMany({
+    where: { sessionId, estado: "TRANSCRITO", r2Key: { not: null } },
+    orderBy: { creadaEn: "asc" },
+    select: { id: true, r2Key: true, duracionSeg: true },
+  });
+
+  return Promise.all(
+    recordings.map(async (r) => ({
+      recordingId: r.id,
+      url: await presignGetObject(r.r2Key!),
+      duracionSeg: r.duracionSeg,
+    })),
+  );
 }
 
 export async function listSessionRecordings(sessionId: string) {

@@ -11,6 +11,17 @@ const RESPONSE_SCHEMA = {
     climaAfectivo: { type: "string" },
     observaciones: { type: "string" },
     senalesRiesgo: { type: "array", items: { type: "string" } },
+    fuentes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          texto: { type: "string" },
+          timestamp: { type: "string" },
+        },
+        required: ["texto", "timestamp"],
+      },
+    },
   },
   required: [
     "objetivoSesion",
@@ -19,6 +30,7 @@ const RESPONSE_SCHEMA = {
     "climaAfectivo",
     "observaciones",
     "senalesRiesgo",
+    "fuentes",
   ],
 };
 
@@ -35,6 +47,7 @@ Reglas estrictas (innegociables, ninguna preferencia de estilo las anula):
 - Si no hay evidencia suficiente para un campo, escribe "No hay información suficiente en la transcripción."
 - Si detectas señales de riesgo (ideación suicida, autolesión, violencia hacia sí mismo o terceros), no las minimices ni las mezcles con el resto: van SIEMPRE en el campo separado "senalesRiesgo", nunca dentro de "observaciones" ni de ningún otro campo. Cada elemento de la lista debe ser una frase corta y concreta (qué se dijo y, si se puede, en qué momento). Si no hay ninguna señal, "senalesRiesgo" va vacío — no inventes una para rellenar.
 - Esta nota es un borrador para que el psicólogo la revise y edite antes de firmarla. No sustituye su criterio clínico.
+- Cada línea de la transcripción empieza con un timestamp entre corchetes, ej. "[02:14] Paciente: ...". Para "fuentes", copia SOLO los dígitos "mm:ss" de la línea de la que sacaste esa afirmación, SIN los corchetes (ej. "02:14", no "[02:14]") — nunca inventes ni calcules uno tú mismo.
 ${memoriaBlock}
 Devuelve JSON con estos campos, basados ÚNICAMENTE en lo dicho en la transcripción:
 - objetivoSesion: metas terapéuticas planificadas o abordadas en esta consulta.
@@ -43,8 +56,9 @@ Devuelve JSON con estos campos, basados ÚNICAMENTE en lo dicho en la transcripc
 - climaAfectivo: estado emocional dominante del paciente durante la consulta.
 - observaciones: lenguaje no verbal, puntualidad, aspectos a retomar en la siguiente sesión (SIN señales de riesgo, esas van aparte).
 - senalesRiesgo: lista de señales de riesgo detectadas (array vacío si no hay ninguna).
+- fuentes: entre 3 y 8 afirmaciones clave de las que escribiste arriba (prioriza señales de riesgo si las hay), cada una con "texto" (la afirmación, corta) y "timestamp" (copiado exacto de la línea de la transcripción que la respalda). Esto permite auditar que no inventaste nada — no lo omitas.
 
-Transcripción (formato "hablante: texto" por turno):
+Transcripción (formato "[mm:ss] hablante: texto" por turno):
 ${transcript}`;
 }
 
@@ -75,6 +89,17 @@ export async function generateFormatoSesion(
     observaciones: String(parsed.observaciones ?? ""),
     senalesRiesgo: Array.isArray(parsed.senalesRiesgo)
       ? parsed.senalesRiesgo.map((s) => String(s)).filter((s) => s.trim() !== "")
+      : [],
+    fuentes: Array.isArray(parsed.fuentes)
+      ? parsed.fuentes
+          .map((f) => {
+            const item = f as Record<string, unknown>;
+            return {
+              texto: String(item.texto ?? ""),
+              timestamp: String(item.timestamp ?? "").replace(/[^\d:]/g, ""),
+            };
+          })
+          .filter((f) => f.texto.trim() !== "" && f.timestamp.trim() !== "")
       : [],
   };
 }
