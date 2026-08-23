@@ -4,7 +4,10 @@ import { startRecording } from "@/lib/dal/recordings";
 
 export const runtime = "nodejs";
 
-const bodySchema = z.object({ sessionId: z.string().min(1) });
+const bodySchema = z.object({
+  sessionId: z.string().min(1),
+  mimeType: z.string().optional(),
+});
 
 export async function POST(req: Request) {
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
@@ -13,7 +16,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await startRecording(parsed.data.sessionId);
+    const result = await startRecording(parsed.data.sessionId, parsed.data.mimeType);
     return Response.json(result);
   } catch (e) {
     return Response.json(

@@ -46,7 +46,13 @@ async function getOwnedRecording(
   return recording;
 }
 
-export async function startRecording(sessionId: string) {
+const EXT_BY_MIME: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/mp4": "m4a",
+  "audio/ogg": "ogg",
+};
+
+export async function startRecording(sessionId: string, mimeType?: string) {
   const ctx = await requireContext();
   const session = await getOwnedSession(ctx, sessionId);
 
@@ -57,12 +63,15 @@ export async function startRecording(sessionId: string) {
     );
   }
 
+  const contentType = mimeType?.split(";")[0] || "audio/webm";
+  const ext = EXT_BY_MIME[contentType] ?? "webm";
+
   const recording = await prisma.recording.create({
     data: { sessionId: session.id, estado: "PENDIENTE" },
   });
 
-  const r2Key = `sessions/${session.id}/${recording.id}.webm`;
-  const uploadId = await createMultipartUpload(r2Key, "audio/webm");
+  const r2Key = `sessions/${session.id}/${recording.id}.${ext}`;
+  const uploadId = await createMultipartUpload(r2Key, contentType);
 
   const updated = await prisma.recording.update({
     where: { id: recording.id },
