@@ -85,7 +85,7 @@ export async function sendDueReminders() {
     });
     try {
       await sendMail(r.destinatarioEmail, subject, html);
-      await prisma.reminder.update({
+      await prisma.reminder.updateMany({
         where: { id: r.id },
         data: { estado: "ENVIADO", enviadoEn: new Date() },
       });
@@ -95,7 +95,7 @@ export async function sendDueReminders() {
         "Error enviando recordatorio",
         e instanceof Error ? e.message : e,
       );
-      await prisma.reminder.update({
+      await prisma.reminder.updateMany({
         where: { id: r.id },
         data: { estado: "FALLIDO" },
       });
