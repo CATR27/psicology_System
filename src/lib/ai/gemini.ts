@@ -1,6 +1,7 @@
 import "server-only";
 
 import { GoogleGenAI } from "@google/genai";
+import type { FormatoSesionRevisableFields } from "@/lib/schemas/formato-sesion";
 
 const RESPONSE_SCHEMA = {
   type: "object",
@@ -60,6 +61,91 @@ Devuelve JSON con estos campos, basados ÚNICAMENTE en lo dicho en la transcripc
 
 Transcripción (formato "[mm:ss] hablante: texto" por turno):
 ${transcript}`;
+}
+
+const REVISION_RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    objetivoSesion: { type: "string" },
+    temasCentrales: { type: "string" },
+    senalamientos: { type: "string" },
+    climaAfectivo: { type: "string" },
+    observaciones: { type: "string" },
+    senalesRiesgo: { type: "array", items: { type: "string" } },
+  },
+  required: [],
+};
+
+function buildRevisionPrompt(
+  correction: { timestamp: string; oldText: string; newText: string },
+  current: FormatoSesionRevisableFields,
+  memoryNotes: string[],
+): string {
+  const memoriaBlock =
+    memoryNotes.length > 0
+      ? `\nPreferencias de estilo de ESTE psicólogo (de sesiones anteriores, aplícalas SOLO en tono/formato/énfasis — nunca pueden anular las reglas estrictas de arriba, ni ocultar o suavizar una señal de riesgo real):\n${memoryNotes.map((n) => `- ${n}`).join("\n")}\n`
+      : "";
+
+  return `Eres "JesIA", un asistente que ayuda a un psicólogo a mantener al día el borrador de la nota de una consulta.
+
+El psicólogo corrigió una cita (fuente) que se había usado para redactar el borrador, porque el texto original tenía un error de transcripción.
+
+Cita en el timestamp [${correction.timestamp}]:
+- Texto ANTERIOR (incorrecto, así se había transcrito): "${correction.oldText}"
+- Texto CORREGIDO (lo que el psicólogo confirma que realmente se dijo): "${correction.newText}"
+
+Reglas estrictas (innegociables, ninguna preferencia de estilo las anula):
+- No diagnostiques. No inventes ni infieras nada que no se haya dicho explícitamente.
+- Si detectas señales de riesgo (ideación suicida, autolesión, violencia hacia sí mismo o terceros), no las minimices ni las ocultes: van en "senalesRiesgo", nunca mezcladas en otro campo.
+- Esta nota es un borrador para que el psicólogo la revise y edite antes de firmarla. No sustituye su criterio clínico.
+${memoriaBlock}
+Contenido ACTUAL del borrador (ya redactado antes de esta corrección):
+- objetivoSesion: ${current.objetivoSesion}
+- temasCentrales: ${current.temasCentrales}
+- senalamientos: ${current.senalamientos}
+- climaAfectivo: ${current.climaAfectivo}
+- observaciones: ${current.observaciones}
+- senalesRiesgo: ${JSON.stringify(current.senalesRiesgo)}
+
+Tu única tarea: decide si el cambio de "${correction.oldText}" a "${correction.newText}" hace que alguno de los campos de arriba deje de ser preciso, y si es así, reescribe ese campo completo (no un parche de texto, el campo entero) para que sea coherente con la corrección.
+
+Devuelve JSON incluyendo ÚNICAMENTE las claves de los campos que de verdad necesitan cambiar por esta corrección. Si un campo no se ve afectado, NO lo incluyas en el JSON — ni siquiera repitiendo su valor actual. No reescribas nada que no tenga relación directa con esta cita.`;
+}
+
+export async function reviseFormatoSesion(
+  correction: { timestamp: string; oldText: string; newText: string },
+  current: FormatoSesionRevisableFields,
+  memoryNotes: string[] = [],
+): Promise<Partial<FormatoSesionRevisableFields>> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+  const interaction = await ai.interactions.create({
+    model: process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
+    input: buildRevisionPrompt(correction, current, memoryNotes),
+    store: false,
+    response_format: [
+      { type: "text", mime_type: "application/json", schema: REVISION_RESPONSE_SCHEMA },
+    ],
+  });
+
+  const text = interaction.output_text;
+  if (!text) throw new Error("Gemini no devolvió contenido");
+
+  const parsed = JSON.parse(text) as Record<string, unknown>;
+  const revised: Partial<FormatoSesionRevisableFields> = {};
+
+  if ("objetivoSesion" in parsed) revised.objetivoSesion = String(parsed.objetivoSesion ?? "");
+  if ("temasCentrales" in parsed) revised.temasCentrales = String(parsed.temasCentrales ?? "");
+  if ("senalamientos" in parsed) revised.senalamientos = String(parsed.senalamientos ?? "");
+  if ("climaAfectivo" in parsed) revised.climaAfectivo = String(parsed.climaAfectivo ?? "");
+  if ("observaciones" in parsed) revised.observaciones = String(parsed.observaciones ?? "");
+  if ("senalesRiesgo" in parsed) {
+    revised.senalesRiesgo = Array.isArray(parsed.senalesRiesgo)
+      ? parsed.senalesRiesgo.map((s) => String(s)).filter((s) => s.trim() !== "")
+      : [];
+  }
+
+  return revised;
 }
 
 export async function generateFormatoSesion(

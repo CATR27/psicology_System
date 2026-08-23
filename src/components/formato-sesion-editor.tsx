@@ -5,7 +5,10 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { createNoteAction, updateDraftAction } from "@/app/actions/notes";
-import { generateNoteFromTranscriptAction } from "@/app/actions/recordings";
+import {
+  generateNoteFromTranscriptAction,
+  reviseNoteWithCorrectionAction,
+} from "@/app/actions/recordings";
 import type { FormatoSesion } from "@/lib/schemas/formato-sesion";
 import { setSessionDirty } from "@/lib/session-dirty";
 import { seekSessionAudio, parseTimestamp } from "@/lib/audio-seek";
@@ -15,6 +18,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { JesiaMemory } from "@/components/recorder/jesia-memory";
+
+const CAMPO_LABELS: Record<string, string> = {
+  objetivoSesion: "Objetivo de la sesión",
+  temasCentrales: "Temas centrales",
+  senalamientos: "Señalamientos",
+  climaAfectivo: "Clima afectivo",
+  observaciones: "Observaciones",
+  senalesRiesgo: "Señales de riesgo",
+};
 
 const CLIMA_CHIPS = [
   "Ansioso",
@@ -45,8 +57,13 @@ export function FormatoSesionEditor({
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [aiFilled, setAiFilled] = useState(false);
+  const [editingFuenteIndex, setEditingFuenteIndex] = useState<number | null>(null);
+  const [editedFuenteTexto, setEditedFuenteTexto] = useState("");
+  const [revisingFuente, setRevisingFuente] = useState(false);
+  const [revisionError, setRevisionError] = useState<string | null>(null);
+  const [camposActualizados, setCamposActualizados] = useState<string[]>([]);
 
-  const { register, handleSubmit, setValue, control } = useForm<FormatoSesion>({
+  const { register, handleSubmit, setValue, getValues, control } = useForm<FormatoSesion>({
     defaultValues: {
       objetivoSesion: initial?.objetivoSesion ?? "",
       temasCentrales: initial?.temasCentrales ?? "",
@@ -126,6 +143,64 @@ export function FormatoSesionEditor({
       fuentes.filter((_, i) => i !== index),
       { shouldDirty: true },
     );
+  }
+
+  function empezarCorreccionFuente(index: number) {
+    setRevisionError(null);
+    setCamposActualizados([]);
+    setEditingFuenteIndex(index);
+    setEditedFuenteTexto(fuentes[index].texto);
+  }
+
+  function cancelarCorreccionFuente() {
+    setEditingFuenteIndex(null);
+    setEditedFuenteTexto("");
+  }
+
+  function guardarCorreccionFuente(index: number) {
+    const newText = editedFuenteTexto.trim();
+    const oldText = fuentes[index].texto;
+    const timestamp = fuentes[index].timestamp;
+    if (!newText || newText === oldText) {
+      cancelarCorreccionFuente();
+      return;
+    }
+
+    // Corrección determinística: el psicólogo nos dice el texto correcto,
+    // no depende de que Gemini responda bien.
+    const updated = fuentes.map((f, i) => (i === index ? { ...f, texto: newText } : f));
+    setValue("fuentes", updated, { shouldDirty: true });
+    setEditingFuenteIndex(null);
+    setEditedFuenteTexto("");
+
+    setRevisionError(null);
+    setCamposActualizados([]);
+    setRevisingFuente(true);
+    reviseNoteWithCorrectionAction({
+      sessionId,
+      timestamp,
+      oldText,
+      newText,
+      current: {
+        objetivoSesion: getValues("objetivoSesion"),
+        temasCentrales: getValues("temasCentrales"),
+        senalamientos: getValues("senalamientos"),
+        climaAfectivo: getValues("climaAfectivo"),
+        observaciones: getValues("observaciones"),
+        senalesRiesgo: getValues("senalesRiesgo") ?? [],
+      },
+    }).then((result) => {
+      setRevisingFuente(false);
+      if (!result.ok) {
+        setRevisionError(result.error);
+        return;
+      }
+      const cambiados = Object.keys(result.revised);
+      for (const [key, value] of Object.entries(result.revised)) {
+        setValue(key as keyof FormatoSesion, value as never, { shouldDirty: true });
+      }
+      setCamposActualizados(cambiados.map((k) => CAMPO_LABELS[k] ?? k));
+    });
   }
 
   function onSubmit(values: FormatoSesion) {
@@ -314,35 +389,86 @@ export function FormatoSesionEditor({
         <div className="space-y-1.5">
           <Label>Fuentes (auditar lo que escribió la IA)</Label>
           <ul className="space-y-1">
-            {fuentes.map((f, i) => (
-              <li
-                key={i}
-                className="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-sm"
-              >
-                <button
-                  type="button"
-                  onClick={() => seekSessionAudio(parseTimestamp(f.timestamp))}
-                  className="text-left underline hover:no-underline"
-                  title="Escuchar este momento"
+            {fuentes.map((f, i) =>
+              editingFuenteIndex === i ? (
+                <li key={i} className="space-y-1.5 rounded border px-2.5 py-1.5 text-sm">
+                  <Textarea
+                    rows={2}
+                    value={editedFuenteTexto}
+                    onChange={(e) => setEditedFuenteTexto(e.target.value)}
+                    autoFocus
+                    className="text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => guardarCorreccionFuente(i)}
+                    >
+                      Guardar corrección
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={cancelarCorreccionFuente}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </li>
+              ) : (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-sm"
                 >
-                  {f.texto} — {f.timestamp}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => quitarFuente(i)}
-                  className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
-                >
-                  quitar
-                </button>
-              </li>
-            ))}
+                  <button
+                    type="button"
+                    onClick={() => seekSessionAudio(parseTimestamp(f.timestamp))}
+                    className="text-left underline hover:no-underline"
+                    title="Escuchar este momento"
+                  >
+                    {f.texto} — {f.timestamp}
+                  </button>
+                  <span className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => empezarCorreccionFuente(i)}
+                      disabled={revisingFuente}
+                      className="text-xs text-muted-foreground hover:text-primary disabled:opacity-50"
+                    >
+                      corregir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => quitarFuente(i)}
+                      disabled={revisingFuente}
+                      className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
+                    >
+                      quitar
+                    </button>
+                  </span>
+                </li>
+              ),
+            )}
           </ul>
+          {revisingFuente && (
+            <p className="text-xs text-muted-foreground">
+              Revisando el resto de la nota con esta corrección…
+            </p>
+          )}
+          {!revisingFuente && camposActualizados.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Se actualizó: {camposActualizados.join(", ")}
+            </p>
+          )}
+          {revisionError && <p className="text-xs text-destructive">{revisionError}</p>}
         </div>
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || revisingFuente}>
         {pending ? "Guardando..." : noteId ? "Guardar borrador" : "Guardar sesión"}
       </Button>
     </form>

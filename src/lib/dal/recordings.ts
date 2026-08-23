@@ -11,8 +11,9 @@ import {
   presignGetObject,
 } from "@/lib/r2";
 import { startTranscription } from "@/lib/deepgram";
-import { generateFormatoSesion } from "@/lib/ai/gemini";
+import { generateFormatoSesion, reviseFormatoSesion } from "@/lib/ai/gemini";
 import { formatTimestamp } from "@/lib/audio-seek";
+import type { FormatoSesionRevisableFields } from "@/lib/schemas/formato-sesion";
 
 import { requireContext } from "./context";
 import { audit } from "./audit";
@@ -236,6 +237,24 @@ export async function generateNoteFromTranscript(sessionId: string) {
   const contenido = await generateFormatoSesion(lines.join("\n"), memoryNotes);
   await audit(ctx, "note.generateAi", sessionId);
   return contenido;
+}
+
+export async function reviseNoteWithCorrection(
+  sessionId: string,
+  correction: { timestamp: string; oldText: string; newText: string },
+  current: FormatoSesionRevisableFields,
+): Promise<Partial<FormatoSesionRevisableFields>> {
+  const ctx = await requireContext();
+  const session = await prisma.session.findFirst({
+    where: { id: sessionId, ...sessionScope(ctx) },
+    select: { id: true, psicologoId: true },
+  });
+  if (!session) notFound();
+
+  const memoryNotes = await listAiMemoryTextsFor(session.psicologoId);
+  const revised = await reviseFormatoSesion(correction, current, memoryNotes);
+  await audit(ctx, "note.reviseAi", sessionId);
+  return revised;
 }
 
 export async function getPlaybackUrls(sessionId: string) {

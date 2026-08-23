@@ -14,3 +14,13 @@ export const formatoSesionSchema = z.object({
 });
 
 export type FormatoSesion = z.infer<typeof formatoSesionSchema>;
+
+export type FormatoSesionRevisableFields = Pick<
+  FormatoSesion,
+  | "objetivoSesion"
+  | "temasCentrales"
+  | "senalamientos"
+  | "climaAfectivo"
+  | "observaciones"
+  | "senalesRiesgo"
+>;
