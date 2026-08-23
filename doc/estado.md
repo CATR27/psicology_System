@@ -183,6 +183,41 @@
 
 ## Nota sobre organizaciones e invitaciones (modelo cerrado)
 
+> ✅ **Verificado end-to-end en producción (Vercel) el 2026-08-23**: admin
+> invitó a un correo de prueba con rol Psicólogo desde
+> `/organizacion/miembros`, el invitado aceptó (Google) y quedó como
+> miembro de la organización correcta — no se le creó una org propia.
+>
+> **Bug encontrado y corregido en la prueba real**: `createOrganizationInvitation`
+> sin `redirectUrl` manda al invitado al **Account Portal genérico de Clerk**
+> (`accounts.*.accounts.dev`) en vez de la app — queda atorado ahí ("Clerk
+> cannot redirect to your application"), aunque la membresía sí se crea
+> bien del lado de Clerk. Se agregó `redirectUrl: \`${APP_URL}/sign-up\`` en
+> `src/lib/dal/invitations.ts` para que el link de invitación caiga en el
+> `<SignUp>` de la app.
+>
+> **Config manual ya aplicada en Clerk Dashboard, ambiente Development**:
+> "Membership required" (ya venía así), "Create first organization
+> automatically" → OFF, "Access mode" → **Invite-only**, rol custom
+> `org:recepcion` creado (`org:admin`/`org:member` ya existían por
+> default). **Pendiente**: repetir estos mismos 3 ajustes en el ambiente
+> **Production** de Clerk antes de invitar gente real — a la fecha de esta
+> nota, Production ni siquiera existe todavía como instancia (el deploy de
+> Vercel corre sobre las keys de Development, `sk_test_...`); crear
+> Production es tarea aparte (implica nuevas keys + actualizar env vars de
+> Vercel) y se dejó para cuando se decida ir a lanzamiento real, junto con
+> el checklist legal.
+>
+> **Rol "Recepción" sin lógica propia todavía**: existe el enum `RECEPCION`
+> y el rol de Clerk `org:recepcion`, y ya se puede invitar con ese rol, pero
+> en el código **no hay ningún chequeo específico para RECEPCION** — todo
+> el DAL solo distingue `ADMIN` vs. no-`ADMIN` (`ctx.rol === "ADMIN"`). Un
+> usuario con rol Recepción hoy queda filtrado igual que un Psicólogo
+> (`psicologoId: ctx.userId`), o sea vería su propia agenda vacía porque no
+> tiene pacientes asignados — necesita lógica propia (ver todos los
+> pacientes/citas de la org sin acceso a notas clínicas) antes de invitar a
+> alguien real con ese rol. Pendiente para Fase 5 (panel de administración).
+>
 > **Decisión explícita del usuario**: nadie se auto-registra creando una
 > organización nueva. Una organización (clínica) se crea manualmente por
 > ahora (fuera de la app, vía Clerk Dashboard); todo psicólogo entra
@@ -228,6 +263,13 @@
 1. **Fase 3 restante** — registrar costo real por sesión (`AiAnalysis`).
 2. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
 3. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
-4. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
+4. **Rol Recepción** — darle lógica propia (ver agenda/citas de toda la org
+   sin acceso a notas clínicas); hoy queda filtrado igual que Psicólogo, ver
+   nota de organizaciones e invitaciones arriba.
+5. **Clerk Production** — crear la instancia de Production (no existe
+   todavía) y repetir ahí los 3 ajustes ya hechos en Development
+   (Membership required, Create-org-automático OFF, Access mode
+   Invite-only, rol `org:recepcion`) antes de invitar gente real.
+6. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
    Gemini en nivel de pago (✅ ya activado), Deepgram sin retención —
    **antes de tocar datos reales**.
