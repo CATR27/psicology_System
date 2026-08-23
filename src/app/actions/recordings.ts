@@ -3,13 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { reassignSegmentSpeaker } from "@/lib/dal/recordings";
+import { reassignSegmentSpeaker, listSessionRecordings } from "@/lib/dal/recordings";
 
 const reassignSchema = z.object({
   segmentId: z.string().min(1),
   hablante: z.enum(["PSICOLOGO", "PACIENTE"]),
   sessionId: z.string().min(1),
 });
+
+export async function getSessionRecordingsAction(sessionId: string) {
+  return listSessionRecordings(sessionId);
+}
 
 export async function reassignSegmentSpeakerAction(input: {
   segmentId: string;

@@ -13,8 +13,7 @@ import { FormatoSesionView } from "@/components/formato-sesion-view";
 import { SignNoteButton } from "@/components/sign-note-button";
 import { LeaveSessionLink } from "@/components/leave-session-link";
 import { DeleteSessionButton } from "@/components/delete-session-button";
-import { AudioRecorder } from "@/components/recorder/audio-recorder";
-import { TranscriptViewer } from "@/components/recorder/transcript-viewer";
+import { RecordingSection } from "@/components/recorder/recording-section";
 
 export default async function SesionDetallePage({
   params,
@@ -101,25 +100,11 @@ export default async function SesionDetallePage({
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Grabación de audio</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AudioRecorder sessionId={id} hasConsent={consentida} />
-        </CardContent>
-      </Card>
-
-      {recordings.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Transcripción</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TranscriptViewer sessionId={id} recordings={recordings} />
-          </CardContent>
-        </Card>
-      )}
+      <RecordingSection
+        sessionId={id}
+        hasConsent={consentida}
+        initialRecordings={recordings}
+      />
 
       <Card>
         <CardHeader>

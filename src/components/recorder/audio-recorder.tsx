@@ -37,9 +37,11 @@ function formatTime(sec: number): string {
 export function AudioRecorder({
   sessionId,
   hasConsent,
+  onUploaded,
 }: {
   sessionId: string;
   hasConsent: boolean;
+  onUploaded?: () => void;
 }) {
   const [status, setStatus] = useState<Status>("idle");
   const [elapsed, setElapsed] = useState(0);
@@ -225,6 +227,7 @@ export function AudioRecorder({
         throw new Error(body.error ?? "No se pudo completar la subida");
       }
       setStatus("done");
+      onUploaded?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo completar la subida");
       setStatus("error");
