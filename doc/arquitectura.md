@@ -46,7 +46,9 @@ src/
 3. **Historia clínica** → wizard de 11 secciones, autosave y % de progreso.
 4. **Consulta** → sesión → formato de consulta → firmar (append-only) → PDF.
 5. **Agenda** → crear cita (paciente + fecha/hora) → genera recordatorios →
-   el cron envía correos al psicólogo (24h y 1h antes) y al paciente (24h, opcional).
+   el cron envía correos **solo al psicólogo** (24h y 1h antes). El paciente
+   no recibe correo (decisión de producto). Reprogramar/cancelar desde el
+   modal de detalle recalcula/borra los recordatorios pendientes.
 
 ## Seguridad (invariantes)
 
