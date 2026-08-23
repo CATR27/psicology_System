@@ -7,7 +7,7 @@
 | Fase 0 — Cimientos | ✅ Terminada | Auth (Clerk + organizaciones), base de datos, proxy, Sentry, webhook de sincronización, deploy en Vercel. |
 | Fase 1 — Expediente manual | ✅ Terminada | CRUD de pacientes, sesiones, consentimientos, auditoría, aislamiento por org/psicólogo. |
 | Fase 2 — Audio → transcripción | ✅ Terminada | Grabador en navegador (MediaRecorder), subida multipart directa a R2 (URLs prefirmadas, nunca pasa por Next), transcripción con Deepgram (nova-3, es, diarización + utterances), webhook de callback, visor de transcript con burbujas y reasignar hablante, barredor de reintentos (`/api/cron/sweep`). Probado con audio real de punta a punta. |
-| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. **Corregir una fuente** (edición inline) dispara una revisión parcial con Gemini — solo actualiza los campos que de verdad se ven afectados por esa corrección, deja el resto del borrador intacto (no regenera todo). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. Falta: comparación de evolución entre sesiones, historia clínica (descartado — se decidió mantenerla 100% manual). |
+| Fase 3 — IA | 🟡 Parcial | Botón **"Generar con IA"** (manual, no automático) en el editor de la consulta: llama a Gemini (`gemini-3.1-flash-lite`, nivel de pago) con la transcripción y llena el formulario de sesión (5 campos + señales de riesgo aparte) — el psicólogo revisa y guarda él mismo, nunca se autoguarda ni se firma sola. Banner dedicado y siempre visible de señales de riesgo (editor, vista firmada y PDF). Reproductor de audio en la sesión + **fuentes citadas con timestamp** (clic → salta y reproduce ese momento exacto), también en las burbujas del transcript. **Corregir una fuente** (edición inline) dispara una revisión parcial con Gemini — solo actualiza los campos que de verdad se ven afectados por esa corrección, deja el resto del borrador intacto (no regenera todo). Memoria **"JesIA"** por psicólogo: notas de estilo/corrección que se inyectan al prompt en generaciones futuras, aisladas por psicólogo. **Evolución del paciente** (`/pacientes/[id]/evolucion`): timeline cronológico por sesión con clima afectivo, temas y señales de riesgo — ver nota abajo. Falta: historia clínica (descartado — se decidió mantenerla 100% manual). |
 | Fase 4 — Agenda y recordatorios | ✅ Terminada | Agenda (calendario mes/semana), citas (crear/cancelar/reprogramar), recordatorios por correo (Gmail) **solo al psicólogo** (24h y 1h antes). Cron cada 15 min: cron-job.org (primario) + GitHub Actions (respaldo). |
 | Fase 5 — Pulido | 🟡 Parcial | Exportación a PDF básica hecha. Falta: dashboard de evolución, búsqueda, admin. |
 
@@ -161,11 +161,29 @@
 > timestamp es frágil; si hace falta más adelante, guardar `segmentId` en
 > cada fuente al generar sería el camino.
 
+## Nota sobre "Evolución del paciente"
+
+> Timeline cronológico por sesión en `/pacientes/[id]/evolucion` (entrada
+> desde una card nueva en la página del paciente): clima afectivo (badges,
+> partiendo el string libre por comas — no hay lista blanca de los 8 chips
+> conocidos, texto libre se muestra igual), extracto de temas centrales
+> (`line-clamp-2`) y una barra simple de señales de riesgo (conteo +
+> ancho relativo al máximo de la lista, con piso `Math.max(1, ...)` para no
+> dividir por cero si todas las sesiones tienen 0). Una sola query
+> (`listPatientEvolution` en `notes.ts`, mismo patrón `include`+`take:1`
+> que `listSessions`), sin N+1.
+>
+> **Decisión explícita del usuario**: no usar el modelo `EmotionMetric`
+> (queda sin usar en el schema — es por-timestamp de audio, no calza con
+> "comparar sesiones"), no agregar una llamada nueva a Gemini, no inventar
+> un puntaje numérico de ánimo/riesgo con IA, no agregar librería de
+> gráficas — se comparó contra esas alternativas y se descartaron. Todo
+> sale de datos que el psicólogo ya capturó al llenar/generar la nota de
+> cada sesión.
+
 ## Roadmap pendiente
 
-1. **Fase 3 restante** — comparación de evolución entre sesiones
-   (`EmotionMetric`), registrar costo real
-   (`AiAnalysis`).
+1. **Fase 3 restante** — registrar costo real por sesión (`AiAnalysis`).
 2. **Fase 4 restante (opcional)** — Sincronización con Google Calendar.
 3. **Fase 5** — Dashboard de evolución, búsqueda full-text, panel de administración, accesibilidad.
 4. **Legal** — Aviso de privacidad, consentimiento firmado, MFA obligatorio,
